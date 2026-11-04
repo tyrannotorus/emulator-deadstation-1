@@ -1,0 +1,3 @@
+# The recomp modules Deadstation's store lists: one GitHub repository a line, owner/name.
+tyrannotorus/emulator-deadstation-1-recomp-rally-cross
+tyrannotorus/emulator-deadstation-1-recomp-tekken-3

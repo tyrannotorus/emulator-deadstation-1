@@ -1,7 +1,3 @@
-[submodule "recomp/psxrecomp"]
-	path = recomp/psxrecomp
-	url = https://github.com/RetroPortingToolKit/psxrecomp.git
-	ignore = dirty
 [submodule "ui"]
 	path = ui
 	url = https://github.com/tyrannotorus/emulator-dead-ui-system.git

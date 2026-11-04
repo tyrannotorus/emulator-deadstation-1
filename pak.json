@@ -1,13 +1,13 @@
 {
   "name": "PS-DEADSTATION1",
   "type": "EMU",
-  "description": "A PlayStation emulator for the TrimUI Brick, drawn with Vulkan.",
+  "description": "A PlayStation emulator for the TrimUI Brick, drawn with Vulkan, with recomp modules.",
   "author": "tyrannotorus",
-  "repo_url": "",
+  "repo_url": "https://github.com/tyrannotorus/emulator-deadstation-1",
   "release_filename": "PS-DEADSTATION1.pak.zip",
   "platforms": [
     "tg5040"
   ],
   "launch": "launch.sh",
-  "version": "0.1.0"
+  "version": "1.0.0"
 }

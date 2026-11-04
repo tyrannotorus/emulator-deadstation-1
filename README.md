@@ -5,74 +5,63 @@
 
 Notes for agents working on this repo. Everything above the line is the maintainer's: leave it as written.
 
-Deadstation 1 is a PlayStation emulator for the TrimUI Brick (NextUI, tg5040) only, as
-`Emus/tg5040/PS-DEADSTATION1.pak`, built from PCSX ReARMed and shaped like Deadcast (the maintainer's Dreamcast
-emulator): the same menu, two-Brick play and recomp modules. It draws with Vulkan on the Brick's PowerVR GE8300
-straight to the panel through fb0; SDL2 reads the pad and plays the audio.
+Deadstation 1 is a PlayStation emulator for the TrimUI Brick (NextUI, tg5040) only, as `Emus/tg5040/PS-DEADSTATION1.pak`, built from PCSX ReARMed and
+shaped like [Deadcast](https://github.com/tyrannotorus/emulator-dreamcast-deadcast), the reference for its architecture. It draws with Vulkan on the Brick's PowerVR GE8300
+straight to the panel through fb0; SDL2 reads the pad and plays the audio. A recomp module is a separate executable that Deadstation hosts: it starts the module as a child process and
+sleeps until MENU, and the menu, the module's options and the store stay Deadstation's.
 
 ### Layout
 
-- `core/`: PCSX ReARMed (libretro/pcsx_rearmed, a git subtree; pruned to what the Brick builds). Its libretro
-  interface is linked in, not loaded. Deadstation's own code is in `core/deadstation/`: the frame loop
-  (`main.cpp`), the Vulkan presenter and fb0 panel (`video.*`, `panel.*`), settings, controls, save states,
-  the menu's emulator side, the link between two Bricks and the two-player lockstep (`netplay.*`).
-- `frontend/`: the menu library the emulator and every recomp module share (from Deadcast): pages, Emulator
-  Options' settings (`options.cpp`), the module store and the catalog of downloadable modules (`catalog.h`).
-- `recomp/`: recomp modules. `recomp/psxrecomp` is PSXRecomp (a submodule at its audited pin, PolyForm
-  Noncommercial), brought to its patches by `recomp/prepare-psxrecomp.sh` (`recomp/patches/psxrecomp/`); every
-  step runs without network (`recomp/sbx`). `recomp/brick/` puts a module's frames on Deadstation's presenter.
-  `recomp/modules/<id>/`: each module's project, manifest and README.
-- `shell/brick/`: build, package and release scripts. `pak.json`: the Pak Store's entry.
+- `core/`: PCSX ReARMed (libretro/pcsx_rearmed; pruned to what the Brick builds). Its libretro interface is linked in, not loaded. Deadstation's own code is in `core/deadstation/`: the frame loop
+  (`main.cpp`), the Vulkan presenter and fb0 panel (`video.*`, `panel.*`), the on-screen text (`osd.*`), settings, controls, save states, the menu's emulator side, the link between two Bricks and the two-player lockstep (`netplay.*`).
+- `ui/`: the menu library, a submodule: pages, the module host, the store, and the tg5040 toolchain. Everything on the screen but the game is drawn on the CPU by it.
+- `store/`: the recomp modules the store lists (`registry.txt`). An Action rebuilds the list on the `store` branch, hourly if GitHub keeps to its schedule, so run it by hand after publishing a module.
+- `shell/brick/`: build and package scripts. `pak.json`: the Pak Store's entry.
 
-Only source, build scripts and READMEs go in git; never disc images or anything made from them (staged
-discs, generated game C, overlay captures).
+Only source, build scripts and READMEs go in git; never disc images or anything made from them.
 
 ### Build
 
-On an x86-64 Linux host with clang, lld, CMake, Ninja, Docker (only to copy the toolchain image's sysroot),
-`vulkan-headers`, `glslang` and `curl` (headers); for recomp modules also gcc, Python 3, bubblewrap and SDL3.
+On an x86-64 Linux host with clang, lld, CMake, Ninja, Docker (only to copy the toolchain image's sysroot), `vulkan-headers`, `glslang` and `curl` (headers).
 
 ```
-shell/brick/toolchain.sh                 # the tg5040 sysroot, out of ghcr.io/loveretro/tg5040-toolchain
-shell/brick/devlibs.sh SERIAL            # the Brick's libcurl.so.4, over adb
+git submodule update --init ui
+ui/toolchain/toolchain.sh                # the tg5040 sysroot, out of ghcr.io/loveretro/tg5040-toolchain
+ui/toolchain/devlibs.sh SERIAL           # the Brick's libcurl.so.4, over adb
 shell/brick/build.sh                     # build-brick/deadstation/core/deadstation/deadstation
 shell/brick/package.sh                   # build-brick/PS-DEADSTATION1.pak and PS-DEADSTATION1.pak.zip
 ```
 
-The core's sources and flags in `CMakeLists.txt` follow upstream's `Makefile.libretro` for aarch64; after a
-subtree pull, compare with a dry run (`make -n -f Makefile.libretro platform=unix ARCH=arm64 DYNAREC=ari64
-BUILTIN_GPU=neon HAVE_NEON_ASM=0 STATIC_LINKING=1 ...`).
+The core's sources and flags in `CMakeLists.txt` follow upstream's `Makefile.libretro` for aarch64.
 
 ### Recomp modules
 
-- Building one: `git submodule update --init recomp/psxrecomp` (never recursive), then
-  `shell/brick/recomp.sh <id> <disc.chd>` makes `build-brick/recomp/<id>/`.
-- Releasing one: `shell/brick/recomp-release.sh <id> <version>` packs it and writes its size and SHA-256
-  into `frontend/catalog.h`; build Deadstation after.
-- A module's enhancements are a PSXRecomp plugin inside the game, `recomp/modules/<id>/src/plugin.cpp`, hooked
-  at the game's own functions (listed in its `game.toml`'s `mod_function_entry_funcs`), turned on by its
-  package in `mods/` and switched by its Recomp Options settings through `run.sh` (environment variables).
-- PSXRecomp's local patches (`recomp/patches/psxrecomp/`) include fixes the modules need (e.g. 0008: the SPU's
-  key-on as the hardware's, without which Rally Cross hangs on its attract screen).
-- In the menu and the docs a module is always the "<game title> recomp module".
-- A module has no menu of its own. MENU opens Deadstation's over the held game (`recomp/brick/module_menu.cpp`, on `frontend/`):
-  Save and Load are disabled; Recomp Options is Check for Update, Show FPS, the settings its `module.cfg` declares, then
-  Delete Recomp Module. A setting the plugin can't apply while playing is read by `run.sh` at the module's start: changing one
-  makes Continue read Restart. One it can is registered with `deadstation_live_settings` (`recomp/brick/psx_sdk.h`).
-- A module keeps its memory cards and controls in its own folder (`saves/`, `input.ini`): an update moves them to the new
-  folder (`frontend/recomp.h`, `keepPlayerFiles`); Delete Recomp Module takes them too, after asking.
+- Each is its own repository, built on the [recomp SDK](https://github.com/tyrannotorus/emulator-deadstation-1-recomp-sdk): the rules, the folder and `module.cfg` are in its README.
+- Listing one: add its repository to `store/registry.txt`. The store then offers its latest release.
+- In the menu a module goes by its manifest's `title` (`Tekken 3 Recompiled`); in the docs it is the "<game title> recomp module". Never the game's title alone.
+- A module's options, in Options with Core on it: Show FPS first, the module's settings after, then its own Controls if it declares any (nothing is shared with the emulator's). They are kept in its own
+  `recomp-data/<id>/settings.cfg`, and go when it is deleted. Getting, updating and deleting a module are the Recomp Store's (on the main page).
+- Any error of a module's shows the error with one button, `A TRY EMULATOR CORE`: Core becomes the emulator and the game starts again in it. The module stays installed, to switch back to in Options or to update in the store.
+
+### Releasing
+
+The version is `project(deadstation VERSION ...)` in `CMakeLists.txt` and `version` in `pak.json`; the release's tag is the version, and its asset is `build-brick/PS-DEADSTATION1.pak.zip`. The Pak Store reads
+`pak.json` from `main`, so the release must exist before a new version reaches `main` once it is listed. Recomp modules have their own releases.
 
 ### Install
 
-Copy `build-brick/PS-DEADSTATION1.pak` to the SD card's `Emus/tg5040/`. Games go in a folder such as
-`Roms/PlayStation (PS-DEADSTATION1)/`: a disc (`.chd`, `.cue`, `.pbp`) or an `.m3u`. The BIOS goes in the pak's
-`bios/`, else `Bios/PS`; it always plays, the PlayStation's startup screen first (no setting). Without one the
-core's built-in BIOS plays, with no startup screen. Settings, memory cards and save states are kept
+Copy `build-brick/PS-DEADSTATION1.pak` to the SD card's `Emus/tg5040/`. Games go in a folder such as `Roms/PlayStation (PS-DEADSTATION1)/`: a disc (`.chd`, `.cue`, `.pbp`) or an `.m3u`. The BIOS goes in the pak's
+`bios/`, else `Bios/PS`; it always plays, the PlayStation's startup screen first (no setting). Without one the core's built-in BIOS plays, with no startup screen. Settings, memory cards and save states are kept
 in `.userdata/tg5040/PS-DEADSTATION1/`.
 
 ### Controls
 
-MENU opens the menu, in the emulator and in a recomp module: Continue, Save and Load (ten slots, with pictures; the
-emulator's only), Options and Quit. Options holds Current Core, Emulator Options (Console, Video, Audio, Controls, Local
-Multiplayer) and Recomp Options (Download Recomp Module, or the installed module's update check and settings). FN2
-saves a state, FN1 loads it; L1, L2, R1, R2, Select and Start are the PlayStation's. Controls remaps them all.
+MENU opens Deadstation's menu (`ui/`, `core/deadstation/menu.cpp`): Continue, Save and Load (ten slots, with pictures; the emulator's only), Options, Recomp Store and Quit. Options holds Core and, under it, the options of the
+core picked: the emulator's Console, Video, Audio, Controls and Local Multiplayer (each setting is saved as it changes), or the module's settings. Recomp Store lists every recomp module: download, update, delete. Updating the
+module being played says it requires a restart, and A restarts the game in the new version. Going back from Options with another core picked asks to restart: Okay starts the game again in it, Cancel puts the core back. Each core's
+options can be set from either core; Local Multiplayer, which plays in the emulator, asks for that restart first. FN2 saves a state, FN1 loads it; L1, L2, R1, R2, Select and Start are the PlayStation's. Controls remaps them all.
+
+### Two players
+
+Two Bricks over a USB-C cable or Bluetooth (`core/deadstation/link*`): both start the game again from its start and run it in lockstep (`netplay.*`). Each player brings a memory card: player 1's in slot 1, player 2's in slot 2 on both Bricks, each kept in its owner's file by its
+owner's Brick. Leaving lets the other Brick go on alone. Recomp modules don't play two-player.
