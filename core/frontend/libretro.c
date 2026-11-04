@@ -2205,15 +2205,9 @@ bool retro_load_game(const struct retro_game_info *info)
       show_notification("LibCrypt protected game with missing SBI detected",
             3000, 3, RETRO_LOG_WARN);
    }
-   if (Config.SlowBoot && show_info_notifications)
-   {
-      char buf[16+64];
-      if (Config.PsxRegion < ARRAY_SIZE(Config.Bios) && Config.Bios[Config.PsxRegion][0]) {
-         snprintf(buf, sizeof(buf), "Booting BIOS: %s", Config.Bios[Config.PsxRegion]);
-         show_message(buf, 1200, 2, RETRO_LOG_INFO, RETRO_MESSAGE_TARGET_OSD,
-               RETRO_MESSAGE_TYPE_PROGRESS);
-      }
-   }
+   // (in the log, not on the screen: the PlayStation's own start-up says it has loaded)
+   if (Config.SlowBoot && Config.PsxRegion < ARRAY_SIZE(Config.Bios) && Config.Bios[Config.PsxRegion][0])
+      SysPrintf("Booting BIOS: %s\n", Config.Bios[Config.PsxRegion]);
    show_enabled_hacks();
 
    return true;

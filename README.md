@@ -10,8 +10,8 @@ A PlayStation 1 emulator targeting optimal performance on the Trimui Brick/Hamme
 # Supported Devices
 ## Trimui Brick/Hammer
 1. Install Deadstation via the [NextUI](https://github.com/LoveRetro/NextUI) [Pak Store](https://github.com/LoveRetro/nextui-pak-store).
-2. Put PlayStation roms in a `/Roms/PlayStation (PS-DEADSTATION1)/` folder on your SD Card.
-3. Put a PlayStation BIOS (such as `scph1001.bin`) in the `/Emus/tg5040/PS-DEADSTATION1.pak/bios/` folder on your SD Card.
+2. Put PlayStation roms in a `/Roms/PlayStation (PS-DEADSTATION-1)/` folder on your SD Card.
+3. Put a PlayStation BIOS (such as `scph1001.bin`) in the `/Emus/tg5040/PS-DEADSTATION-1.pak/bios/` folder on your SD Card.
 
 # Credits
 - [PCSX ReARMed](https://github.com/libretro/pcsx_rearmed): the emulator Deadstation is built from.
@@ -23,7 +23,7 @@ A PlayStation 1 emulator targeting optimal performance on the Trimui Brick/Hamme
 
 Notes for agents working on this repo. Everything above the line is the maintainer's: leave it as written.
 
-Deadstation 1 is a PlayStation emulator for the TrimUI Brick (NextUI, tg5040) only, as `Emus/tg5040/PS-DEADSTATION1.pak`, built from PCSX ReARMed and
+Deadstation 1 is a PlayStation emulator for the TrimUI Brick (NextUI, tg5040) only, as `Emus/tg5040/PS-DEADSTATION-1.pak`, built from PCSX ReARMed and
 shaped like [Deadcast](https://github.com/tyrannotorus/emulator-dreamcast-deadcast), the reference for its architecture. It draws with Vulkan on the Brick's PowerVR GE8300
 straight to the panel through fb0; SDL2 reads the pad and plays the audio. A recomp module is a separate executable that Deadstation hosts: it starts the module as a child process and
 sleeps until MENU, and the menu, the module's options and the store stay Deadstation's.
@@ -49,7 +49,7 @@ git submodule update --init ui
 ui/toolchain/toolchain.sh                # the tg5040 sysroot, out of ghcr.io/loveretro/tg5040-toolchain
 ui/toolchain/devlibs.sh SERIAL           # the Brick's libcurl.so.4, over adb
 shell/brick/build.sh                     # build-brick/deadstation/core/deadstation/deadstation
-shell/brick/package.sh                   # build-brick/PS-DEADSTATION1.pak and PS-DEADSTATION1.pak.zip
+shell/brick/package.sh                   # build-brick/PS-DEADSTATION-1.pak and PS-DEADSTATION-1.pak.zip
 ```
 
 The core's sources and flags in `CMakeLists.txt` follow upstream's `Makefile.libretro` for aarch64.
@@ -65,14 +65,14 @@ The core's sources and flags in `CMakeLists.txt` follow upstream's `Makefile.lib
 
 ### Releasing
 
-The version is `project(deadstation VERSION ...)` in `CMakeLists.txt` and `version` in `pak.json`; the release's tag is the version, and its asset is `build-brick/PS-DEADSTATION1.pak.zip`. The Pak Store reads
+The version is `project(deadstation VERSION ...)` in `CMakeLists.txt` and `version` in `pak.json`; the release's tag is the version, and its asset is `build-brick/PS-DEADSTATION-1.pak.zip`. The Pak Store reads
 `pak.json` from `main`, so the release must exist before a new version reaches `main` once it is listed. Recomp modules have their own releases.
 
 ### Install
 
-Copy `build-brick/PS-DEADSTATION1.pak` to the SD card's `Emus/tg5040/`. Games go in a folder such as `Roms/PlayStation (PS-DEADSTATION1)/`: a disc (`.chd`, `.cue`, `.pbp`) or an `.m3u`. The BIOS goes in the pak's
+Copy `build-brick/PS-DEADSTATION-1.pak` to the SD card's `Emus/tg5040/`. Games go in a folder such as `Roms/PlayStation (PS-DEADSTATION-1)/`: a disc (`.chd`, `.cue`, `.pbp`) or an `.m3u`. The BIOS goes in the pak's
 `bios/`, else `Bios/PS`; it always plays, the PlayStation's startup screen first (no setting). Without one the core's built-in BIOS plays, with no startup screen. Settings, memory cards and save states are kept
-in `.userdata/tg5040/PS-DEADSTATION1/`.
+in `.userdata/tg5040/PS-DEADSTATION-1/`.
 
 ### Controls
 
