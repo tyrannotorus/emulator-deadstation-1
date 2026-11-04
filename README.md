@@ -38,7 +38,7 @@ sleeps until MENU, and the menu, the module's options and the store stay Deadsta
 
 Only source, build scripts and READMEs go in git; never disc images or anything made from them.
 
-An NTSC game runs at 59.85 Hz and the panel with it: the DSI's frame is 789 lines instead of 784 while it plays (`panel.cpp`, `FPS_NTSC` in `psxcounters.c`), so no frame is shown twice. Recomp modules keep the panel's own rate. The kernel's console is off while playing (`launch.sh`): its messages hold up the display's flip.
+An NTSC game runs at 59.85 Hz and the panel with it: the DSI's frame is 789 lines instead of 784 while it plays (`panel.cpp`, `FPS_NTSC` in `psxcounters.c`), so no frame is shown twice. Recomp modules run at the same rate, their sound mixed for the speaker (the SDK's README). The kernel's console is off while playing (`launch.sh`): its messages hold up the display's flip.
 
 ### Build
 
