@@ -109,8 +109,7 @@ bool environment(unsigned cmd, void *data)
 	{
 		const auto *message = (const retro_message_ext *)data;
 		DS_LOG("core: %s", message->msg);
-		// on the screen only what the player has to know
-		if (message->target != RETRO_MESSAGE_TARGET_LOG && message->level >= RETRO_LOG_WARN)
+		if (message->target != RETRO_MESSAGE_TARGET_LOG)
 			osd::notify(message->msg, (int)message->duration);
 		return true;
 	}
