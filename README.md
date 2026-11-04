@@ -1,3 +1,22 @@
+# Deadstation 1
+A Playstation 1 emulator targeting optimal performance on the Trimui Brick/Hammer.
+
+# Features
+## Emulator
+- All (?) games play full speed on the TrimUI Brick/Hammer.
+- USB-C / Bluetooth device-to-device co-op play.
+- In-app Recomp store for game mods
+
+# Supported Devices
+## Trimui Brick/Hammer
+1. Install Deadstation via the [NextUI](https://github.com/LoveRetro/NextUI) [Pak Store](https://github.com/LoveRetro/nextui-pak-store).
+2. Put Dreamcast roms in a `/Roms/Dreamcast (DC-DEADCAST)/` folder on your SD Card.
+3. Put the Dreamcast BIOS (`dc_boot.bin`) in the `/Emus/tg5040/DC-DEADCAST.pak/bios/` folder on your SD Card.
+
+# Credits
+- [Flycast](https://github.com/flyinghead/flycast): the emulator Deadcast is built from.
+- [dreamcomp](https://github.com/cherryduck/dreamcomp): the Dreamcast recompiler the recomp engine builds on.
+- [Rez Recompiled](https://github.com/tyrannotorus/recomp-dreamcast-rez): the port the Rez recomp module comes from.
 
 ---
 
