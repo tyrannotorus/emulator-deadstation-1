@@ -80,21 +80,18 @@ static u32 hsync_steps = 0;
 /******************************************************************************/
 
 #define FPS_FRACTIONAL_PAL  (53203425/314./3406) // ~49.75
-#define FPS_FRACTIONAL_NTSC (53693175/263./3413) // ~59.81
+// Deadstation: an NTSC PlayStation is about 59.82 Hz. This is the Brick's panel at 789 lines a frame
+// (core/deadstation/panel.cpp), close to the console and with no frame shown twice.
+#define FPS_NTSC 59.85
 
 static inline
 u32 frameCycles(void)
 {
     int ff = Config.FractionalFramerate >= 0
         ? Config.FractionalFramerate : Config.hacks.fractional_Framerate;
-    if (ff)
-    {
-        if (Config.PsxType)
-            return (u32)(PSXCLK / FPS_FRACTIONAL_PAL);
-        else
-            return (u32)(PSXCLK / FPS_FRACTIONAL_NTSC);
-    }
-    return Config.PsxType ? (PSXCLK / 50) : (PSXCLK / 60);
+    if (!Config.PsxType)
+        return (u32)(PSXCLK / FPS_NTSC);
+    return ff ? (u32)(PSXCLK / FPS_FRACTIONAL_PAL) : (PSXCLK / 50);
 }
 
 // used to inform the frontend about the exact framerate
@@ -102,10 +99,9 @@ double psxGetFps()
 {
     int ff = Config.FractionalFramerate >= 0
         ? Config.FractionalFramerate : Config.hacks.fractional_Framerate;
-    if (ff)
-        return Config.PsxType ? FPS_FRACTIONAL_PAL : FPS_FRACTIONAL_NTSC;
-    else
-        return Config.PsxType ? 50.0 : 60.0;
+    if (!Config.PsxType)
+        return FPS_NTSC;
+    return ff ? FPS_FRACTIONAL_PAL : 50.0;
 }
 
 // to inform the frontend about the exact famerate

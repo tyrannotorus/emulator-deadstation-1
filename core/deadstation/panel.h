@@ -27,6 +27,10 @@ public:
 	// native: fb0 at the panel's own size (1024 x 768), else 640 x 480 scaled by the display engine
 	bool init(vk::Device device, bool native, std::string& error, uint32_t smallWidth = 640);
 	void term();
+	// the panel at an NTSC game's rate until term: false, with the reason in the log, if it can't be
+	bool matchRate();
+	// the panel's own rate, if a run that crashed left it matched
+	static void restoreLeftRate();
 
 	vk::Extent2D extent() const { return { mode.xres, mode.yres }; }
 	static constexpr vk::Format format() { return vk::Format::eB8G8R8A8Unorm; }
@@ -71,6 +75,8 @@ public:
 	uint64_t framesShown();
 
 private:
+	bool rateChanged = false;		// matchRate changed the DSI's frame
+	void restoreRate();
 	void showLoop();
 	void drawCorners(uint32_t page);
 	void frameMode(uint32_t page);

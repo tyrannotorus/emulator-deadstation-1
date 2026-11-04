@@ -56,6 +56,8 @@ for run in 1 2 3 4 5; do
 done
 # NextUI's display mode again, should deadstation have been killed before restoring it
 command -v fbset > /dev/null && fbset -g 1024 768 1024 16384 32
+# and the panel's own rate (core/deadstation/panel.cpp)
+"$PAK_DIR/deadstation" --restore-panel
 # and the USB ports as they were, should it have been killed with its USB link up (core/deadstation/link.cpp):
 # ADB alone on the bottom port, and the port a device again if deadstation made it a host
 G=/sys/kernel/config/usb_gadget/g1

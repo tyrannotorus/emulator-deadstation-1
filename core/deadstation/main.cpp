@@ -353,11 +353,22 @@ double secondsBetween(const timespec& a, const timespec& b)
 	return (double)(b.tv_sec - a.tv_sec) + (b.tv_nsec - a.tv_nsec) * 1e-9;
 }
 
+bool ntscGame = false;		// the panel at its rate, whenever the screen is (re)made
+
+void matchPanel()
+{
+	if (ntscGame && !video.panel().matchRate())
+		osd::notify("Panel rate not matched", 3000);
+}
+
 bool startVideo()
 {
 	std::string error;
 	if (video.init(settings::nativeResolution(), settings::smoothing(), error))
+	{
+		matchPanel();
 		return true;
+	}
 	DS_LOG("the screen: %s", error.c_str());
 	return false;
 }
@@ -417,6 +428,11 @@ std::vector<std::pair<int, bool>> padEvents()
 
 int main(int argc, char **argv)
 {
+	if (argc == 2 && strcmp(argv[1], "--restore-panel") == 0)
+	{
+		Panel::restoreLeftRate();
+		return 0;
+	}
 	if (argc < 2)
 	{
 		std::fprintf(stderr, "usage: deadstation <game>\n");
@@ -526,6 +542,9 @@ int main(int argc, char **argv)
 	const double fps = av.timing.fps > 0 ? av.timing.fps : 60.0;
 	const int rate = av.timing.sample_rate > 0 ? (int)av.timing.sample_rate : 44100;
 	DS_LOG("core: %.3f fps, %d Hz sound, %u x %u", fps, rate, av.geometry.base_width, av.geometry.base_height);
+	// (a PAL game's 50 Hz is too far from the panel's to match)
+	ntscGame = fps > 55.0;
+	matchPanel();
 	SDL_AudioSpec want{}, have{};
 	want.freq = rate;
 	want.format = AUDIO_S16SYS;
