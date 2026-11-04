@@ -12,7 +12,7 @@
 #include <thread>
 #include <vector>
 
-// Something drawn with each frame (a recomp module's 3D layer: recomp/brick/scene_light.h): its own passes
+// Something drawn with each frame: its own passes
 // before the page's, then its drawing over the frame, in the page's commands.
 class VideoLayer
 {
@@ -60,7 +60,7 @@ public:
 	void frame(const void *data, unsigned width, unsigned height, size_t pitch, Format format);
 	// the last frame again (text changed while the game repeats its frame)
 	void again();
-	// the device, for a recomp module's GPU (recomp/brick/psx_gpu.h): it submits its work to the same queue before
+	// the device, for another user of the GPU: it submits its work to the same queue before
 	// each frameImage
 	struct Device
 	{
