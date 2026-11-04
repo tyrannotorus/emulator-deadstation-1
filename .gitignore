@@ -1,0 +1,30 @@
+# Local tooling, notes and reference material (never committed)
+/local/
+build-brick/
+
+# Recomp modules: everything that comes from a builder's own disc (never in git: the game's data and code)
+recomp/modules/*/disc/
+recomp/modules/*/generated/
+recomp/modules/*/overlays/
+recomp/modules/*/decomp/
+recomp/modules/*/build/
+recomp/modules/*/saves/
+
+# Discs and anything made from them, anywhere
+*.chd
+*.cue
+*.bin
+*.iso
+*.img
+*.pbp
+*.ecm
+*.ccd
+*.sub
+*.m3u
+generated/
+overlays/
+decomp/
+extracted/
+disc/
+saves/
+build*/
