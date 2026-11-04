@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 # Deadstation 1: PCSX ReARMed (core/) for the TrimUI Brick (NextUI, tg5040). Brick only: build with
-# shell/brick/build.sh, which passes shell/brick/tg5040.cmake as the toolchain file.
-project(deadstation VERSION 0.1.0 LANGUAGES C CXX ASM)
+# shell/brick/build.sh, which passes ui/toolchain/tg5040.cmake as the toolchain file.
+project(deadstation VERSION 1.0.0 LANGUAGES C CXX ASM)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
@@ -125,6 +125,24 @@ set_source_files_properties(${C}/frontend/libretro.c PROPERTIES
 set_source_files_properties(${C}/frontend/main.c PROPERTIES COMPILE_DEFINITIONS "HAVE_RTHREADS;BUILTIN_GPU=neon")
 target_link_libraries(pcsx_core PUBLIC m dl pthread)
 
-# --- Deadstation: the menu library (shared with the recomp modules) and the frontend that runs the core
-add_subdirectory(frontend)
+# --- Deadstation: the menu and pages, the store, and hosting recomp modules (ui/), and what runs the core
+# FreeType for the text (the sysroot's; the device has the same libfreetype.so.6); the device's libcurl and zlib for the store
+find_library(DEADSTATION_FREETYPE NAMES libfreetype.so REQUIRED)
+add_library(freetype SHARED IMPORTED)
+set_target_properties(freetype PROPERTIES IMPORTED_LOCATION ${DEADSTATION_FREETYPE}
+		INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_SYSROOT}/usr/include/freetype2)
+if(NOT DEADSTATION_CURL_INCLUDE OR NOT DEADSTATION_CURL_LIBRARY)
+	message(FATAL_ERROR "DEADSTATION_CURL_INCLUDE / DEADSTATION_CURL_LIBRARY: libcurl's headers and the device's libcurl.so.4")
+endif()
+add_library(CURL::libcurl SHARED IMPORTED)
+set_target_properties(CURL::libcurl PROPERTIES IMPORTED_LOCATION ${DEADSTATION_CURL_LIBRARY}
+		INTERFACE_INCLUDE_DIRECTORIES ${DEADSTATION_CURL_INCLUDE})
+find_package(ZLIB REQUIRED)
+set(DEADUI_APP_NAME Deadstation)
+set(DEADUI_HOME_ENV DEADSTATION_HOME)
+set(DEADUI_ROM_ENV DEADSTATION_ROM)
+set(DEADUI_LINK_PREFIX dslink)
+set(DEADUI_STORE_URL https://raw.githubusercontent.com/tyrannotorus/emulator-deadstation-1/store/catalog.cfg)
+set(DEADUI_CONSOLE playstation)
+add_subdirectory(ui)
 add_subdirectory(core/deadstation)

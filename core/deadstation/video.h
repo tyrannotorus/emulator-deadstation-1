@@ -1,6 +1,5 @@
 // The core's frames to the screen through Vulkan: each frame is uploaded into a texture and drawn,
-// filtered, over a whole page of fb0 (panel.h), 4:3 as the PlayStation's picture is; a small overlay
-// (Show FPS) over its bottom left.
+// filtered, over a whole page of fb0 (panel.h), 4:3 as the PlayStation's picture is.
 #pragma once
 #include "panel.h"
 
@@ -14,7 +13,7 @@
 #include <vector>
 
 // Something drawn with each frame (a recomp module's 3D layer: recomp/brick/scene_light.h): its own passes
-// before the page's, then its drawing over the frame (after it, before the overlay), in the page's commands.
+// before the page's, then its drawing over the frame, in the page's commands.
 class VideoLayer
 {
 public:
@@ -59,7 +58,7 @@ public:
 
 	// a frame from the core: width x height pixels, pitch bytes per row
 	void frame(const void *data, unsigned width, unsigned height, size_t pitch, Format format);
-	// the last frame again (the overlay changed while the game repeats its frame)
+	// the last frame again (text changed while the game repeats its frame)
 	void again();
 	// the device, for a recomp module's GPU (recomp/brick/psx_gpu.h): it submits its work to the same queue before
 	// each frameImage
@@ -86,8 +85,6 @@ public:
 	uint32_t lastPage() const { return lastPageGiven; }
 	// the last frame as RGB24 (the menu's backdrop, a save state's picture)
 	bool lastFrame(std::vector<uint8_t>& rgb, int& width, int& height) const;
-	// BGRA pixels drawn at the bottom left at the screen's 1024 x 768 scale; empty: none
-	void setOverlay(const std::vector<uint32_t>& pixels, int width, int height);
 	// seconds spent waiting in frame() for a page (the panel, the GPU) since the last call
 	double takeWaited() { const double w = waited; waited = 0; return w; }
 
@@ -112,7 +109,6 @@ public:
 
 private:
 	uint32_t TexWidth = 1024, TexHeight = 512;
-	static constexpr uint32_t OverlayWidth = 256, OverlayHeight = 64;
 	struct Page
 	{
 		vk::UniqueBuffer staging;
@@ -125,12 +121,6 @@ private:
 		vk::DescriptorSet set;
 		vk::DescriptorSet externalSet;	// frameImage's image
 		VkImageView externalView = VK_NULL_HANDLE;
-		vk::UniqueImage overlay;
-		vk::UniqueDeviceMemory overlayMemory;
-		vk::UniqueImageView overlayView;
-		bool overlayReady = false;
-		uint64_t overlayVersion = 0;	// the overlay it holds
-		vk::DescriptorSet overlaySet;
 		vk::UniqueCommandBuffer commands;
 		vk::UniqueFence fence;
 		vk::UniqueFramebuffer framebuffer;
@@ -170,12 +160,9 @@ private:
 	vk::UniqueRenderPass renderPass;
 	vk::UniqueDescriptorSetLayout setLayout;
 	vk::UniquePipelineLayout pipelineLayout;
-	vk::UniquePipelineLayout overlayLayout;
 	vk::UniquePipeline pipeline;
 	vk::UniquePipeline exactPipeline;		// a frame already the page's size
-	vk::UniquePipeline overlayPipeline;
 	vk::UniqueSampler sampler;
-	vk::UniqueSampler overlaySampler;
 	vk::UniqueDescriptorPool descriptorPool;
 	vk::UniqueCommandPool commandPool;
 	Page pages[Panel::Pages];
@@ -191,10 +178,6 @@ private:
 	std::vector<uint8_t> last;
 	unsigned lastWidth = 0, lastHeight = 0;
 	Format lastFormat = Format::RGB565;
-	// the overlay
-	std::vector<uint32_t> overlayPixels;
-	int overlayWidth = 0, overlayHeight = 0;
-	uint64_t overlayVersion = 0;
 	double waited = 0;
 	uint32_t lastPageGiven = 0;
 	// the submit thread (setAsyncSubmit)

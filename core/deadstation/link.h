@@ -1,4 +1,4 @@
-// The link between two Bricks for two-player games (Options, Emulator Options, Local
+// The link between two Bricks for two-player games (Options, Local
 // Multiplayer): the other Brick found, the players' VMUs swapped, the link tested, and IP over the link
 // (dslink0) for the session (deadstation/netplay.h), which both Bricks start by themselves once linked when
 // they play the same game.

@@ -1,21 +1,21 @@
 #!/bin/sh
 # Cross-build Deadstation for NextUI's tg5040 handhelds (TrimUI Brick, aarch64) into build-brick/deadstation.
 # Needs:
-#  - the toolchain (shell/brick/toolchain.sh)
+#  - the toolchain (ui/toolchain/toolchain.sh), in TG5040_ROOT or build-brick/toolchain
 #  - the host's Vulkan headers (vulkan-headers; the sysroot has none) and glslangValidator (glslang),
 #    which compiles the shaders to SPIR-V
-#  - the device's libcurl.so.4 (shell/brick/devlibs.sh SERIAL), to link against, and the host's curl
+#  - the device's libcurl.so.4 (ui/toolchain/devlibs.sh SERIAL), in TG5040_DEVLIBS or build-brick/devlibs, and the host's curl
 #    headers (curl); the sysroot has neither
 #  - clang, lld, cmake and ninja on the host
 # Arguments go to ninja.
 set -e
 cd "$(dirname "$0")/../.."
 B=build-brick/deadstation
-TC="$PWD/build-brick/toolchain"
-[ -d "$TC/aarch64-nextui-linux-gnu/libc" ] || { echo "brick: no toolchain (shell/brick/toolchain.sh)"; exit 2; }
+TC=${TG5040_ROOT:-$PWD/build-brick/toolchain}
+[ -d "$TC/aarch64-nextui-linux-gnu/libc" ] || { echo "brick: no toolchain (ui/toolchain/toolchain.sh)"; exit 2; }
 mkdir -p build-brick/include
-CURLLIB="$PWD/build-brick/devlibs/libcurl.so.4"
-[ -f "$CURLLIB" ] || { echo "brick: no $CURLLIB (shell/brick/devlibs.sh SERIAL)"; exit 2; }
+CURLLIB=${TG5040_DEVLIBS:-$PWD/build-brick/devlibs}/libcurl.so.4
+[ -f "$CURLLIB" ] || { echo "brick: no $CURLLIB (ui/toolchain/devlibs.sh SERIAL)"; exit 2; }
 rm -rf build-brick/include/vulkan build-brick/include/vk_video build-brick/include/curl
 cp -r /usr/include/vulkan /usr/include/vk_video /usr/include/curl build-brick/include/
 # pkg-config sees the sysroot's packages only, never the host's
@@ -25,8 +25,8 @@ export PKG_CONFIG_SYSROOT_DIR="$SYSROOT"
 unset PKG_CONFIG_PATH
 mkdir -p "$B"
 cmake -S . -B "$B" -G Ninja \
-    -DCMAKE_TOOLCHAIN_FILE="$PWD/shell/brick/tg5040.cmake" \
-    -DDEADSTATION_TG5040_ROOT="$TC" \
+    -DCMAKE_TOOLCHAIN_FILE="$PWD/ui/toolchain/tg5040.cmake" \
+    -DTG5040_ROOT="$TC" \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_SKIP_RPATH=ON \
     -DDEADSTATION_VULKAN_INCLUDE="$PWD/build-brick/include" \

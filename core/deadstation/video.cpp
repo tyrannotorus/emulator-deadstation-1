@@ -4,8 +4,6 @@
 #include "frame_frag.h"
 #include "frame_exact_frag.h"
 #include "frame_vert.h"
-#include "overlay_frag.h"
-#include "overlay_vert.h"
 
 #include <algorithm>
 #include <chrono>
@@ -21,11 +19,6 @@ struct FramePush
 	float uvScale[2];
 	float uvMin[2];
 	float uvMax[2];
-};
-struct OverlayPush
-{
-	float rect[4];
-	float uvScale[2];
 };
 }
 
@@ -154,22 +147,15 @@ bool Video::init(bool native, bool smooth, std::string& error, uint32_t maxWidth
 		setLayout = device->createDescriptorSetLayoutUnique(vk::DescriptorSetLayoutCreateInfo(vk::DescriptorSetLayoutCreateFlags(), binding));
 		vk::PushConstantRange framePush(vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, 0, sizeof(FramePush));
 		pipelineLayout = device->createPipelineLayoutUnique(vk::PipelineLayoutCreateInfo(vk::PipelineLayoutCreateFlags(), *setLayout, framePush));
-		vk::PushConstantRange overlayPush(vk::ShaderStageFlagBits::eVertex, 0, sizeof(OverlayPush));
-		overlayLayout = device->createPipelineLayoutUnique(vk::PipelineLayoutCreateInfo(vk::PipelineLayoutCreateFlags(), *setLayout, overlayPush));
 		pipeline = makePipeline(frame_vert, sizeof(frame_vert), frame_frag, sizeof(frame_frag), *pipelineLayout, vk::PrimitiveTopology::eTriangleList);
 		exactPipeline = makePipeline(frame_vert, sizeof(frame_vert), frame_exact_frag, sizeof(frame_exact_frag), *pipelineLayout, vk::PrimitiveTopology::eTriangleList);
-		overlayPipeline = makePipeline(overlay_vert, sizeof(overlay_vert), overlay_frag, sizeof(overlay_frag), *overlayLayout,
-				vk::PrimitiveTopology::eTriangleStrip);
 
 		const vk::Filter filter = smooth ? vk::Filter::eLinear : vk::Filter::eNearest;
 		sampler = device->createSamplerUnique(vk::SamplerCreateInfo(vk::SamplerCreateFlags(), filter, filter,
 				vk::SamplerMipmapMode::eNearest, vk::SamplerAddressMode::eClampToEdge, vk::SamplerAddressMode::eClampToEdge,
 				vk::SamplerAddressMode::eClampToEdge));
-		overlaySampler = device->createSamplerUnique(vk::SamplerCreateInfo(vk::SamplerCreateFlags(), vk::Filter::eNearest, vk::Filter::eNearest,
-				vk::SamplerMipmapMode::eNearest, vk::SamplerAddressMode::eClampToEdge, vk::SamplerAddressMode::eClampToEdge,
-				vk::SamplerAddressMode::eClampToEdge));
-		vk::DescriptorPoolSize poolSize(vk::DescriptorType::eCombinedImageSampler, 3 * Panel::Pages);
-		descriptorPool = device->createDescriptorPoolUnique(vk::DescriptorPoolCreateInfo(vk::DescriptorPoolCreateFlags(), 3 * Panel::Pages, poolSize));
+		vk::DescriptorPoolSize poolSize(vk::DescriptorType::eCombinedImageSampler, 2 * Panel::Pages);
+		descriptorPool = device->createDescriptorPoolUnique(vk::DescriptorPoolCreateInfo(vk::DescriptorPoolCreateFlags(), 2 * Panel::Pages, poolSize));
 		commandPool = device->createCommandPoolUnique(vk::CommandPoolCreateInfo(vk::CommandPoolCreateFlagBits::eResetCommandBuffer, queueFamily));
 		if (getenv("DEADSTATION_PERF") != nullptr && physicalDevice.getQueueFamilyProperties()[queueFamily].timestampValidBits > 0)
 		{
@@ -178,16 +164,15 @@ bool Video::init(bool native, bool smooth, std::string& error, uint32_t maxWidth
 					Panel::Pages * 3));
 		}
 
-		std::vector<vk::DescriptorSetLayout> layouts(3 * Panel::Pages, *setLayout);
+		std::vector<vk::DescriptorSetLayout> layouts(2 * Panel::Pages, *setLayout);
 		const auto sets = device->allocateDescriptorSets(vk::DescriptorSetAllocateInfo(*descriptorPool, layouts));
 		auto commands = device->allocateCommandBuffersUnique(vk::CommandBufferAllocateInfo(*commandPool, vk::CommandBufferLevel::ePrimary, Panel::Pages));
-		const vk::DeviceSize stagingSize = (vk::DeviceSize)TexWidth * TexHeight * 4 + OverlayWidth * OverlayHeight * 4;
+		const vk::DeviceSize stagingSize = (vk::DeviceSize)TexWidth * TexHeight * 4;
 		for (uint32_t i = 0; i < Panel::Pages; i++)
 		{
 			Page& p = pages[i];
-			p.set = sets[2 * i];
-			p.overlaySet = sets[2 * i + 1];
-			p.externalSet = sets[2 * Panel::Pages + i];
+			p.set = sets[i];
+			p.externalSet = sets[Panel::Pages + i];
 			p.externalView = VK_NULL_HANDLE;
 			p.commands = std::move(commands[i]);
 			p.fence = device->createFenceUnique(vk::FenceCreateInfo(vk::FenceCreateFlagBits::eSignaled));
@@ -218,20 +203,6 @@ bool Video::init(bool native, bool smooth, std::string& error, uint32_t maxWidth
 					memoryType(req.memoryTypeBits, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent)));
 			device->bindBufferMemory(*p.staging, *p.stagingMemory, 0);
 			p.mapped = (uint8_t *)device->mapMemory(*p.stagingMemory, 0, stagingSize);
-
-			p.overlay = device->createImageUnique(vk::ImageCreateInfo(vk::ImageCreateFlags(), vk::ImageType::e2D, vk::Format::eB8G8R8A8Unorm,
-					vk::Extent3D(OverlayWidth, OverlayHeight, 1), 1, 1, vk::SampleCountFlagBits::e1, vk::ImageTiling::eOptimal,
-					vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled));
-			const vk::MemoryRequirements oreq = device->getImageMemoryRequirements(*p.overlay);
-			p.overlayMemory = device->allocateMemoryUnique(vk::MemoryAllocateInfo(oreq.size,
-					memoryType(oreq.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal)));
-			device->bindImageMemory(*p.overlay, *p.overlayMemory, 0);
-			p.overlayView = device->createImageViewUnique(vk::ImageViewCreateInfo(vk::ImageViewCreateFlags(), *p.overlay, vk::ImageViewType::e2D,
-					vk::Format::eB8G8R8A8Unorm, vk::ComponentMapping(), vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1)));
-			vk::DescriptorImageInfo overlayInfo(*overlaySampler, *p.overlayView, vk::ImageLayout::eShaderReadOnlyOptimal);
-			device->updateDescriptorSets(vk::WriteDescriptorSet(p.overlaySet, 0, 0, vk::DescriptorType::eCombinedImageSampler, overlayInfo), nullptr);
-			p.overlayVersion = 0;
-			p.overlayReady = false;
 		}
 		texturesMade = false;
 		makeTextures(lastFormat);
@@ -378,7 +349,7 @@ vk::Fence Video::frameImage(vk::ImageView view, uint32_t imageWidth, uint32_t im
 int Video::pageForFrame(uint32_t width, uint32_t height) const
 {
 	const vk::Extent2D extent = screen.extent();
-	if (!isReady || layer != nullptr || (overlayWidth > 0 && overlayHeight > 0) || width != extent.width || height != extent.height)
+	if (!isReady || layer != nullptr || width != extent.width || height != extent.height)
 		return -1;
 	return (int)next;
 }
@@ -424,11 +395,6 @@ vk::Fence Video::draw(unsigned width, unsigned height, Format format, bool uploa
 	const size_t bpp = format == Format::RGB565 ? 2 : 4;
 	if (upload && external == nullptr)
 		memcpy(p.mapped, last.data(), (size_t)width * height * bpp);
-	const vk::DeviceSize overlayOffset = (vk::DeviceSize)TexWidth * TexHeight * 4;
-	const bool overlay = overlayWidth > 0 && overlayHeight > 0;
-	const bool uploadOverlay = overlay && p.overlayVersion != overlayVersion;
-	if (uploadOverlay)
-		memcpy(p.mapped + overlayOffset, overlayPixels.data(), overlayPixels.size() * 4);
 
 	vk::CommandBuffer cmd = *p.commands;
 	cmd.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
@@ -498,17 +464,6 @@ vk::Fence Video::draw(unsigned width, unsigned height, Format format, bool uploa
 		fp = { { external->x / iw, external->y / ih }, { width / iw, height / ih }, { (external->x + 0.5f) / iw, (external->y + 0.5f) / ih },
 				{ (external->x + width - 0.5f) / iw, (external->y + height - 0.5f) / ih } };
 	}
-	if (uploadOverlay)
-	{
-		toTransfer(*p.overlay, p.overlayReady);
-		vk::BufferImageCopy ocopy(overlayOffset, (uint32_t)overlayWidth, (uint32_t)overlayHeight,
-				vk::ImageSubresourceLayers(vk::ImageAspectFlagBits::eColor, 0, 0, 1), { 0, 0, 0 },
-				{ (uint32_t)overlayWidth, (uint32_t)overlayHeight, 1 });
-		cmd.copyBufferToImage(*p.staging, *p.overlay, vk::ImageLayout::eTransferDstOptimal, ocopy);
-		toShader(*p.overlay);
-		p.overlayReady = true;
-		p.overlayVersion = overlayVersion;
-	}
 
 	const vk::Extent2D extent = screen.extent();
 	if (layer != nullptr)
@@ -527,18 +482,6 @@ vk::Fence Video::draw(unsigned width, unsigned height, Format format, bool uploa
 	if (layer != nullptr)
 		layer->draw(cmd, i, set, { { fp.uvScale[0], fp.uvScale[1] }, { fp.uvMax[0], fp.uvMax[1] }, { fp.uvOffset[0], fp.uvOffset[1] },
 				{ fp.uvMin[0], fp.uvMin[1] } });
-	if (overlay && p.overlayReady)
-	{
-		// at the 1024 x 768 screen's scale, 6 pixels in from its bottom left corner
-		const float sx = 2.f / 1024.f, sy = 2.f / 768.f;
-		const float x0 = -1.f + 6 * sx, y1 = 1.f - 6 * sy;
-		const OverlayPush op = { { x0, y1 - overlayHeight * sy, x0 + overlayWidth * sx, y1 },
-				{ (float)overlayWidth / OverlayWidth, (float)overlayHeight / OverlayHeight } };
-		cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, *overlayPipeline);
-		cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *overlayLayout, 0, p.overlaySet, nullptr);
-		cmd.pushConstants(*overlayLayout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(op), &op);
-		cmd.draw(4, 1, 0, 0);
-	}
 	cmd.endRenderPass();
 	if (timed)
 	{
@@ -593,22 +536,6 @@ bool Video::lastFrame(std::vector<uint8_t>& rgb, int& width, int& height) const
 	return true;
 }
 
-void Video::setOverlay(const std::vector<uint32_t>& pixels, int width, int height)
-{
-	if (pixels.empty() || width <= 0 || height <= 0)
-	{
-		overlayWidth = overlayHeight = 0;
-		overlayPixels.clear();
-		return;
-	}
-	overlayWidth = std::min(width, (int)OverlayWidth);
-	overlayHeight = std::min(height, (int)OverlayHeight);
-	overlayPixels.assign((size_t)overlayWidth * overlayHeight, 0);
-	for (int y = 0; y < overlayHeight; y++)
-		memcpy(&overlayPixels[(size_t)y * overlayWidth], &pixels[(size_t)y * width], (size_t)overlayWidth * 4);
-	overlayVersion++;
-}
-
 void Video::term()
 {
 	if (!device)
@@ -635,12 +562,9 @@ void Video::term()
 	timestamps.reset();
 	commandPool.reset();
 	descriptorPool.reset();
-	overlaySampler.reset();
 	sampler.reset();
-	overlayPipeline.reset();
 	exactPipeline.reset();
 	pipeline.reset();
-	overlayLayout.reset();
 	pipelineLayout.reset();
 	setLayout.reset();
 	renderPass.reset();

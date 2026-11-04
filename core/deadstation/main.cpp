@@ -1,5 +1,5 @@
-// Deadstation: PCSX ReARMed's core (its libretro interface, linked in) run on the Brick, with Deadcast's
-// menu. Pictures go through Vulkan to fb0 (video.h); SDL2 reads the pad and plays the sound; nothing else
+// Deadstation: PCSX ReARMed's core (its libretro interface, linked in) run on the Brick, with the shared
+// menu (ui/). Pictures go through Vulkan to fb0 (video.h); SDL2 reads the pad and plays the sound; nothing else
 // of SDL runs (its video would take fb0).
 //   deadstation <game>        a .chd, .cue, .pbp or an .m3u of them
 // Environment (launch.sh): DEADSTATION_HOME (settings, memory cards, save states), DEADSTATION_BIOS (the
@@ -12,10 +12,10 @@
 #include "netplay.h"
 #include "log.h"
 #include "menu.h"
-#include "recomp.h"
+#include "dead_ui.h"
+#include "osd.h"
 #include "settings.h"
 #include "states.h"
-#include "ui.h"
 #include "video.h"
 
 #include <libretro.h>
@@ -96,11 +96,20 @@ bool environment(unsigned cmd, void *data)
 			*(bool *)data = true;
 		return true;
 	case RETRO_ENVIRONMENT_SET_MESSAGE:
-		DS_LOG("core: %s", ((const retro_message *)data)->msg);
+	{
+		const auto *message = (const retro_message *)data;
+		DS_LOG("core: %s", message->msg);
+		osd::notify(message->msg, (int)(message->frames * 1000 / 60));
 		return true;
+	}
 	case RETRO_ENVIRONMENT_SET_MESSAGE_EXT:
-		DS_LOG("core: %s", ((const retro_message_ext *)data)->msg);
+	{
+		const auto *message = (const retro_message_ext *)data;
+		DS_LOG("core: %s", message->msg);
+		if (message->target != RETRO_MESSAGE_TARGET_LOG)
+			osd::notify(message->msg, (int)message->duration);
 		return true;
+	}
 	default:
 		return false;
 	}
@@ -178,6 +187,9 @@ std::string firstDisc(const std::string& path)
 	return path;
 }
 
+// the second memory card's memory (the core's): a two-player session's, in slot 2
+extern "C" char Mcd2Data[];
+
 // memory card 1: the core's save RAM, kept as <home>/<game>.srm (card 2 is the core's own file)
 std::string memcardPath(const std::string& rom)
 {
@@ -197,10 +209,9 @@ void loadMemcard(const std::string& path)
 		in.read(data, (std::streamsize)size);
 }
 
-void saveMemcard(const std::string& path)
+// a card's memory into its file, in one go
+void saveCard(const std::string& path, const char *data, size_t size)
 {
-	const auto *data = (const char *)retro_get_memory_data(RETRO_MEMORY_SAVE_RAM);
-	const size_t size = retro_get_memory_size(RETRO_MEMORY_SAVE_RAM);
 	if (data == nullptr || size == 0)
 		return;
 	const std::string tmp = path + ".tmp";
@@ -216,9 +227,15 @@ void saveMemcard(const std::string& path)
 	std::rename(tmp.c_str(), path.c_str());
 }
 
+void saveMemcard(const std::string& path)
+{
+	saveCard(path, (const char *)retro_get_memory_data(RETRO_MEMORY_SAVE_RAM), retro_get_memory_size(RETRO_MEMORY_SAVE_RAM));
+}
+
 // a two-player session starting (the link's page, then the menu's Restart): the same settings on both Bricks
-// for determinism, the game loaded again from nothing (a reset keeps RAM), both pads in, the host player's
-// memory card in slot 1 on both
+// for determinism, the game loaded again from nothing (a reset keeps RAM), both pads in. As on a PlayStation with two
+// controllers, each player brings a card: player 1's in slot 1, player 2's in slot 2 on both Bricks (the link swaps
+// them), kept in its owner's file by its owner's Brick. Slot 2 stays in memory, whatever the core's own card file holds.
 std::string gamePath;
 std::string memcardFile;
 
@@ -229,6 +246,7 @@ void startSession()
 	settings::force("pcsx_rearmed_gpu_thread_rendering", "disabled");
 	settings::force("pcsx_rearmed_region", "auto");
 	settings::force("pcsx_rearmed_frameskip_type", "disabled");
+	settings::force("pcsx_rearmed_memcard2", "libretro");
 	saveMemcard(memcardFile);
 	retro_unload_game();
 	retro_deinit();
@@ -242,15 +260,22 @@ void startSession()
 	}
 	retro_set_controller_port_device(0, RETRO_DEVICE_JOYPAD);
 	retro_set_controller_port_device(1, RETRO_DEVICE_JOYPAD);
+	const std::vector<u8> peerCard = link::peerVmu();
+	auto *slot1 = (u8 *)retro_get_memory_data(RETRO_MEMORY_SAVE_RAM);
+	const size_t size = retro_get_memory_size(RETRO_MEMORY_SAVE_RAM);
 	if (netplay::host())
+	{
 		loadMemcard(memcardFile);
+		if (!peerCard.empty())
+			memcpy(Mcd2Data, peerCard.data(), std::min(size, peerCard.size()));
+	}
 	else
 	{
-		const std::vector<u8> card = link::peerVmu();
-		auto *data = (u8 *)retro_get_memory_data(RETRO_MEMORY_SAVE_RAM);
-		const size_t size = retro_get_memory_size(RETRO_MEMORY_SAVE_RAM);
-		if (data != nullptr && !card.empty())
-			memcpy(data, card.data(), std::min(size, card.size()));
+		if (slot1 != nullptr && !peerCard.empty())
+			memcpy(slot1, peerCard.data(), std::min(size, peerCard.size()));
+		std::ifstream own(memcardFile, std::ios::binary);
+		if (own)
+			own.read(Mcd2Data, (std::streamsize)size);
 	}
 	DS_LOG("netplay: the game from its start, as player %d", netplay::host() ? 1 : 2);
 }
@@ -298,6 +323,7 @@ void screenshot(const std::string& rom)
 	chunk("IDAT", z);
 	chunk("IEND", {});
 	DS_LOG("screenshot: %s", path.c_str());
+	osd::notify("Screenshot saved", 2000);
 }
 
 void addNs(timespec& t, long ns)
@@ -393,11 +419,32 @@ int main(int argc, char **argv)
 		biosDir = bios;
 	DS_LOG("%s, game %s, BIOS from %s", DEADSTATION_VERSION, game.c_str(), biosDir.c_str());
 
-	// the core chosen for this disc in Options: its recomp module, if installed, runs in this process
-	// (first: deletions marked by a module from its own menu, what an install cut short left)
+	// recomp modules marked for deletion deleted, an install cut short tidied away; then the disc's recomp module
+	// hosted, if that is its chosen core (no emulator started)
 	recomp::tidy();
+	if (recomp::get("app.version") != DEADSTATION_APP_VERSION)
+		recomp::set("app.version", DEADSTATION_APP_VERSION);
 	const std::string disc = firstDisc(game);
-	recomp::runChosen(disc);
+	recomp::runChosen(disc, [] {
+		menu::openHostedControls(
+				[] {
+					if (SDL_Init(SDL_INIT_JOYSTICK) != 0)
+						return false;
+					if (SDL_NumJoysticks() > 0)
+						joystick = SDL_JoystickOpen(0);
+					controls::open(joystick);
+					controls::load();
+					return joystick != nullptr;
+				},
+				[] {
+					if (joystick != nullptr)
+						SDL_JoystickClose(joystick);
+					joystick = nullptr;
+					controls::open(nullptr);
+					SDL_Quit();
+				},
+				padEvents);
+	});
 
 	signal(SIGTERM, [](int) { quit = true; });
 	signal(SIGUSR1, [](int) { shotWanted = true; });
@@ -435,7 +482,8 @@ int main(int argc, char **argv)
 		SDL_Quit();
 		return 1;
 	}
-	menu::init(&video, rom, disc, memcard);
+	menu::init(&video, rom, disc, memcard, [] { saveMemcard(memcardFile); });
+	osd::init(&video);
 	menu::showStart();
 
 	retro_set_environment(environment);
@@ -491,8 +539,8 @@ int main(int argc, char **argv)
 	const bool perfEverySecond = getenv("DEADSTATION_PERF") != nullptr;
 	double runTime = 0, runWorst = 0;
 	unsigned over = 0;
-	bool fpsShown = false;
 	int exitCode = 0;
+	bool showFps = settings::showFps();	// as Options has it, read when the menu closes
 	bool session = false;			// this run became a two-player session (save states off, card rules)
 	uint32_t sessionFrame = 0;
 	while (!quit)
@@ -519,6 +567,7 @@ int main(int argc, char **argv)
 			{
 				if (netplay::active())
 				{
+					menu::showStartTwoPlayers();
 					startSession();
 					session = true;
 					sessionFrame = 0;
@@ -528,12 +577,14 @@ int main(int argc, char **argv)
 			}
 			else if (netplay::active())
 				netplay::setPaused(false);
+			showFps = settings::showFps();
 			// back in the game: settings that remake the screen, then the clock from now
 			if (settings::changed() & (settings::Resolution | settings::Smoothing))
 			{
 				video.term();
 				if (!startVideo())
 					break;
+				osd::again();
 				video.again();
 			}
 			if (audioDevice != 0)
@@ -554,9 +605,14 @@ int main(int argc, char **argv)
 			else if (netplay::active())
 				continue;		// no save states or screenshots' worth of pause in a session
 			else if (code == controls::binding(controls::SaveState))
-				menu::saveSlot();
+				osd::notify(menu::saveSlot() ? "State saved" : "The game could not be saved", 2000);
 			else if (code == controls::binding(controls::LoadState))
-				menu::loadSlot();
+			{
+				if (!menu::slotExists())
+					osd::notify("Save state not found", 2000);
+				else if (!menu::loadSlot())
+					osd::notify("The game could not be loaded", 2000);
+			}
 			else if (code == controls::binding(controls::Screenshot))
 				screenshot(rom);
 		}
@@ -610,7 +666,9 @@ int main(int argc, char **argv)
 
 		timespec before{};
 		clock_gettime(CLOCK_MONOTONIC, &before);
+		const unsigned presentedBefore = presented;
 		retro_run();
+		osd::frame(presented != presentedBefore, showFps, fastForward);
 		frames++;
 		if (netplay::active())
 			netplay::frameDone(++sessionFrame, (const uint8_t *)retro_get_memory_data(RETRO_MEMORY_SYSTEM_RAM),
@@ -647,20 +705,6 @@ int main(int argc, char **argv)
 			}
 			runTime = runWorst = 0;
 			over = 0;
-			if (settings::showFps())
-			{
-				char text[32];
-				snprintf(text, sizeof(text), "F:%.1f", shown);
-				int w = 0, h = 0;
-				const std::vector<uint32_t> label = ui::label(text, w, h);
-				video.setOverlay(label, w, h);
-				fpsShown = true;
-			}
-			else if (fpsShown)
-			{
-				video.setOverlay({}, 0, 0);
-				fpsShown = false;
-			}
 			frames = 0;
 			shownFrom = presented;
 			statFrom = now;
@@ -670,8 +714,10 @@ int main(int argc, char **argv)
 	DS_LOG("quitting");
 	if (const char *save = getenv("DEADSTATION_SAVE"); save != nullptr && *save != '\0')
 		DS_LOG("test: state %s %s", save, states::save(save, {}, 0, 0) ? "saved" : "NOT saved");
-	// a session's player 2 played with the host's card: its own stays as it was
-	if (!session || netplay::host())
+	// each player's card to its file, by its own Brick: a session's player 2's is in slot 2
+	if (session && !netplay::host())
+		saveCard(memcard, Mcd2Data, retro_get_memory_size(RETRO_MEMORY_SAVE_RAM));
+	else
 		saveMemcard(memcard);
 	netplay::leave();
 	link::stop();

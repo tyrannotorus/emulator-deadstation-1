@@ -57,8 +57,22 @@ public:
 	// until every frame queued is shown
 	void drain();
 
+	// small pictures copied onto every frame once it is drawn, just before it is shown, at the bottom left: only their text's
+	// pixels (not the colour Corner::Box), by the CPU into the page, so that the GPU's frame and its cost are untouched
+	struct Corner
+	{
+		std::vector<uint32_t> pixels;	// BGRA, width x height
+		int width = 0, height = 0;
+		int bottom = 0;					// its bottom edge, up from the screen's
+		static constexpr uint32_t Box = 0x202020;
+	};
+	void setCorners(std::vector<Corner> corners);
+	// the frames shown since init
+	uint64_t framesShown();
+
 private:
 	void showLoop();
+	void drawCorners(uint32_t page);
 	void frameMode(uint32_t page);
 	void pan(uint32_t page);
 	void restoreMode();
@@ -98,4 +112,13 @@ private:
 	uint64_t queuedFor[Pages] = {}, drawnFor[Pages] = {};
 	uint64_t shownCount = 0;
 	bool stopping = false;
+	std::mutex cornersMutex;
+	struct CornerRun
+	{
+		size_t offset;		// in a page, in bytes
+		uint32_t source;	// in cornerPixels
+		uint32_t count;
+	};
+	std::vector<uint32_t> cornerPixels;
+	std::vector<CornerRun> cornerRuns;
 };

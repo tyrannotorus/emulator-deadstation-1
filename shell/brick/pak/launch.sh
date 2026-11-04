@@ -42,11 +42,8 @@ echo 1 >/tmp/stay_awake
 sh "$SYSTEM_PATH/bin/governor.sh" auto
 
 # exit 86: the game's other core chosen in Options (Emulator or its recomp module): started again,
-# deadstation running the module itself when that is the core (frontend/recomp.h), or a module's settings
-# changed (it reads them as it starts); only ever by the player's choice in the menu, so a generous limit
-run=0
-while [ "$run" -lt 50 ]; do
-	run=$((run + 1))
+# deadstation hosting the module when that is the core (ui/src/host.h); a few times at most
+for run in 1 2 3 4 5; do
 	"$PAK_DIR/deadstation" "$ROM"
 	code=$?
 	echo "Deadstation: deadstation exited with $code"

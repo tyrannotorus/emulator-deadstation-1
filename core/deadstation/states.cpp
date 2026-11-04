@@ -1,6 +1,6 @@
 #include "states.h"
 #include "log.h"
-#include "recomp.h"
+#include "dead_ui.h"
 
 #include <libretro.h>
 

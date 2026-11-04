@@ -1,5 +1,5 @@
 #include "controls.h"
-#include "recomp.h"
+#include "dead_ui.h"
 
 #include <libretro.h>
 

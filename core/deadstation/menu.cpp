@@ -1,20 +1,21 @@
 #include "menu.h"
 #include "controls.h"
+#include "dead_ui.h"
 #include "link.h"
 #include "netplay.h"
-#include "recomp.h"
 #include "log.h"
 #include "settings.h"
 #include "states.h"
-#include "ui.h"
 #include "video.h"
 
 #include <chrono>
 #include <fstream>
+#include <memory>
 #include <thread>
 
-// Deadstation's side of the menu (frontend/ui.h draws it): its settings for Emulator Options
-// (settings.h), its own pages (Controls), its save states, the start page, and the screen and pad.
+// Deadstation's side of the menu (ui/src/ui.h draws it): its settings for Options (settings.h), its own
+// pages (Controls, Local Multiplayer and the link, a two-player session's), its save states, the start page,
+// and the screen and pad.
 namespace deadstation::menu
 {
 namespace
@@ -62,6 +63,7 @@ struct State
 	int previewHeight = 0;
 	int awaiting = -1;				// a Controls row waiting for a control (its function)
 	std::string card;				// this player's memory card file
+	std::function<void()> saveCard;
 	bool link = false;				// the link's page open
 	u32 linkVersion = 0;			// the link's status it shows
 	std::string linkFailure;		// why the link cannot go on, once it cannot
@@ -165,7 +167,7 @@ void drawPreview(int ox)
 
 
 //
-// Local Multiplayer: the link's page (Deadcast's)
+// Local Multiplayer: the link's page
 //
 
 // linked, tested, IP up, the same game and build on both: both start it again as two players
@@ -307,6 +309,8 @@ void openLink(link::Via via)
 	st.linkVersion = ~0u;
 	st.linkFailure.clear();
 	st.connected = false;
+	// for the other Brick to check (two players only in the same game), and this player's card, as it is now, to swap
+	st.saveCard();
 	link::setGame(gameId(), st.card);
 	link::start(via);
 }
@@ -456,8 +460,9 @@ ui::Button menuButton(int code)
 
 }	// namespace
 
-void init(Video *video, const std::string& rom, const std::string& disc, const std::string& card)
+void init(Video *video, const std::string& rom, const std::string& disc, const std::string& card, std::function<void()> saveCard)
 {
+	st.saveCard = std::move(saveCard);
 	display.video = video;
 	ui::setDisplay(&display);
 	st.rom = rom;
@@ -515,6 +520,12 @@ void input(int code, bool pressed)
 		ui::move(ui::page(), 1);
 		return;
 	}
+	// a recomp module's Controls, set from the emulator
+	if (pressed && ui::awaitingControl())
+	{
+		ui::controlPressed(controls::inputName(code));
+		return;
+	}
 	ui::button(menuButton(code), pressed);
 }
 
@@ -565,6 +576,11 @@ void showStartError(const std::string& what)
 	std::this_thread::sleep_for(std::chrono::seconds(3));
 }
 
+bool showStartTwoPlayers()
+{
+	return ui::showStart("Starting two players...", "Waiting for the other Brick");
+}
+
 bool saveSlot()
 {
 	std::vector<u8> rgb;
@@ -574,6 +590,46 @@ bool saveSlot()
 	const bool ok = states::save(states::slotPath(st.slot), rgb, w, h);
 	DS_LOG("state: slot %d %s", st.slot + 1, ok ? "saved" : "not saved");
 	return ok;
+}
+
+bool slotExists()
+{
+	return states::exists(st.slot);
+}
+
+void openHostedControls(std::function<bool()> openPad, std::function<void()> closePad,
+		std::function<std::vector<std::pair<int, bool>>()> events)
+{
+	// its own reading of the pad takes over: an arrow held is let go of, either way
+	const auto letGo = [] {
+		for (ui::Button arrow : { ui::Button::Up, ui::Button::Down, ui::Button::Left, ui::Button::Right })
+			ui::button(arrow, false);
+	};
+	struct PadOnly
+	{
+		std::function<void()> close, letGo;
+		~PadOnly()
+		{
+			close();
+			letGo();
+		}
+	};
+	letGo();
+	const bool opened = openPad();
+	auto padOnly = std::make_shared<PadOnly>(PadOnly { closePad, letGo });
+	if (!opened)
+	{
+		ui::message("The pad could not be opened.");
+		return;
+	}
+	st.awaiting = -1;
+	Screen screen = bindingsScreen();
+	screen.readsPad = true;
+	screen.tick = [padOnly, events] {
+		for (const auto& [code, pressed] : events())
+			input(code, pressed);
+	};
+	ui::push(std::move(screen));
 }
 
 bool loadSlot()

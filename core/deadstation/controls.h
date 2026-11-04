@@ -1,5 +1,5 @@
 // The Brick's controls (trimui_inputd's Xbox 360 pad through SDL's joystick API) and what each does:
-// the PlayStation's buttons and Deadstation's own functions, remapped in Emulator Options > Controls and
+// the PlayStation's buttons and Deadstation's own functions, remapped in Options > Controls and
 // kept in <home>/controls.cfg. MENU is always the menu.
 #pragma once
 #include <SDL.h>

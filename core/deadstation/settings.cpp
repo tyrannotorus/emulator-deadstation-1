@@ -23,7 +23,7 @@ std::map<std::string, std::string> answers;		// GET_VARIABLE's strings, kept ali
 unsigned pending = 0;
 bool coreUpdate = false;
 
-// Emulator Options' core settings: the value each of its choices stands for, in order
+// Options' core settings: the value each of its choices stands for, in order
 const std::map<std::string, std::vector<const char *>> CoreValues {
 	{ "pcsx_rearmed_region", { "auto", "NTSC", "PAL" } },
 	{ "pcsx_rearmed_frameskip_type", { "disabled", "auto" } },
@@ -47,7 +47,7 @@ int fileValue(const char *section, const char *key, int fallback)
 	return s != nullptr ? options::file().get(*s) : fallback;
 }
 
-// a core option's value: forced, else Emulator Options', else the core's default
+// a core option's value: forced, else Options', else the core's default
 std::string coreValue(const std::string& key)
 {
 	if (auto f = forced.find(key); f != forced.end())

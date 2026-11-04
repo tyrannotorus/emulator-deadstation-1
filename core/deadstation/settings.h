@@ -1,8 +1,8 @@
 // Deadstation's settings: the core's options (as it declares them, with their defaults) and Deadstation's
-// own, as Emulator Options shows them (frontend/options.h) and emu.cfg keeps them. The core reads its
+// own, as Options shows them (ui/src/options.h) and emu.cfg keeps them. The core reads its
 // options through the libretro environment (GET_VARIABLE); a change is picked up between frames.
 #pragma once
-#include "options.h"
+#include "dead_ui.h"
 
 #include <libretro.h>
 
@@ -22,7 +22,7 @@ bool smoothing();			// the frame filtered as it is scaled to the screen
 // a core option set for this run only, over emu.cfg (tests, a two-player session's pinned settings)
 void force(const std::string& key, const std::string& value);
 
-// Emulator Options' values: emu.cfg, each change applied at once (changed() then says what to apply)
+// Options' values: emu.cfg, each change applied at once (changed() then says what to apply)
 options::Store store();
 enum Change : unsigned { CoreOptions = 1, Resolution = 2, Smoothing = 4 };
 unsigned changed();		// and cleared

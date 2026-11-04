@@ -3,8 +3,8 @@
 // so that both Bricks run every frame with the same two pads: the host's player 1, the other's player 2.
 // Every 300 frames the two compare a hash of the console's RAM (a difference is logged: DESYNC).
 // Determinism: the session runs with the core's threaded dynarec compiler, SPU and GPU off (settings.h).
-// Memory cards (first version): the host player's card in slot 1 on both Bricks, written back only on the host;
-// slot 2 empty. Save states are off in a session.
+// Memory cards: each player brings one, player 1's in slot 1 and player 2's in slot 2 on both Bricks, each kept in its
+// owner's file by its owner's Brick (main.cpp). Save states are off in a session.
 #pragma once
 #include <cstdint>
 #include <string>
