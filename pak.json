@@ -9,5 +9,8 @@
     "tg5040"
   ],
   "launch": "launch.sh",
-  "version": "1.0.0"
+  "version": "1.0.0",
+  "changelog": {
+    "1.0.0": "- A PlayStation emulator for the Brick, drawn with Vulkan\n- In-app Recomp Store: Rally Cross and Tekken 3"
+  }
 }
