@@ -6,7 +6,9 @@
 // folder with the BIOS), DEADSTATION_ROM (the file NextUI started, for the menu's title).
 // Tests: DEADSTATION_STATE=<file> loads that save state once the game is loaded; DEADSTATION_SAVE=<file>
 // saves one there as the game quits; DEADSTATION_CORE="key=value,..." sets core options for the run;
-// DEADSTATION_RESOLUTION=640|1024 picks the resolution; DEADSTATION_PERF=1 logs a perf line a second.
+// DEADSTATION_RESOLUTION=640|1024 picks the resolution; DEADSTATION_PERF=1 logs a perf line a second;
+// DEADSTATION_TEST_SESSION=host|guest starts a two-player session, the other Brick's part played by another program on
+// this one, on port DEADSTATION_TEST_PEER_PORT, its memory card from file DEADSTATION_TEST_PEER_CARD.
 #include "controls.h"
 #include "link.h"
 #include "netplay.h"
@@ -29,6 +31,7 @@
 #include <cstring>
 #include <ctime>
 #include <fstream>
+#include <iterator>
 #include <signal.h>
 #include <string>
 #include <sys/stat.h>
@@ -106,7 +109,8 @@ bool environment(unsigned cmd, void *data)
 	{
 		const auto *message = (const retro_message_ext *)data;
 		DS_LOG("core: %s", message->msg);
-		if (message->target != RETRO_MESSAGE_TARGET_LOG)
+		// on the screen only what the player has to know
+		if (message->target != RETRO_MESSAGE_TARGET_LOG && message->level >= RETRO_LOG_WARN)
 			osd::notify(message->msg, (int)message->duration);
 		return true;
 	}
@@ -117,6 +121,9 @@ bool environment(unsigned cmd, void *data)
 
 void videoRefresh(const void *data, unsigned width, unsigned height, size_t pitch)
 {
+	// a two-player start: its page stays up until the other Brick is heard (the first frames run without it)
+	if (netplay::active() && !netplay::heardPeer())
+		return;
 	// the first frame takes the start page down
 	if (data != nullptr && menu::starting())
 		menu::endStart();
@@ -260,7 +267,12 @@ void startSession()
 	}
 	retro_set_controller_port_device(0, RETRO_DEVICE_JOYPAD);
 	retro_set_controller_port_device(1, RETRO_DEVICE_JOYPAD);
-	const std::vector<u8> peerCard = link::peerVmu();
+	std::vector<u8> peerCard = link::peerVmu();
+	if (const char *test = getenv("DEADSTATION_TEST_PEER_CARD"))
+	{
+		std::ifstream file(test, std::ios::binary);
+		peerCard.assign(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
+	}
 	auto *slot1 = (u8 *)retro_get_memory_data(RETRO_MEMORY_SAVE_RAM);
 	const size_t size = retro_get_memory_size(RETRO_MEMORY_SAVE_RAM);
 	if (netplay::host())
@@ -277,7 +289,8 @@ void startSession()
 		if (own)
 			own.read(Mcd2Data, (std::streamsize)size);
 	}
-	DS_LOG("netplay: the game from its start, as player %d", netplay::host() ? 1 : 2);
+	DS_LOG("netplay: the game from its start, as player %d; the cards' CRCs: slot 1 %08lx, slot 2 %08lx", netplay::host() ? 1 : 2,
+			slot1 != nullptr ? crc32(0, slot1, (uInt)size) : 0ul, crc32(0, (const Bytef *)Mcd2Data, (uInt)size));
 }
 
 // a PNG of the last frame in the SD card's Screenshots folder
@@ -543,8 +556,16 @@ int main(int argc, char **argv)
 	bool showFps = settings::showFps();	// as Options has it, read when the menu closes
 	bool session = false;			// this run became a two-player session (save states off, card rules)
 	uint32_t sessionFrame = 0;
+	const char *testSession = getenv("DEADSTATION_TEST_SESSION");
 	while (!quit)
 	{
+		if (testSession != nullptr && presented >= 60)
+		{
+			netplay::begin(strcmp(testSession, "host") == 0, "127.0.0.1", 2);
+			testSession = nullptr;
+			if (menu::open())
+				ui::finish(ui::Result::Restart);
+		}
 		const auto events = padEvents();
 		if (menu::isOpen())
 		{
@@ -668,7 +689,9 @@ int main(int argc, char **argv)
 		clock_gettime(CLOCK_MONOTONIC, &before);
 		const unsigned presentedBefore = presented;
 		retro_run();
-		osd::frame(presented != presentedBefore, showFps, fastForward);
+		// (not over the start page: the text's last frame again would take its place)
+		if (!menu::starting())
+			osd::frame(presented != presentedBefore, showFps, fastForward);
 		frames++;
 		if (netplay::active())
 			netplay::frameDone(++sessionFrame, (const uint8_t *)retro_get_memory_data(RETRO_MEMORY_SYSTEM_RAM),

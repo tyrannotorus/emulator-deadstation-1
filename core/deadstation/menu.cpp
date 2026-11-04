@@ -368,10 +368,14 @@ Screen sessionScreen()
 	screen.items.push_back(entry("Quit", "", [] { ui::finish(ui::Result::Quit); }));
 	screen.tick = [] {
 		const netplay::PauseState now = netplay::pauseState();
-		if (!netplay::active())
+		// the session goes on (Continue on the other Brick, the other Brick back), or has ended
+		if (!netplay::active() || now.pause == netplay::Pause::None)
 			ui::finish(ui::Result::Resume);
 		else if (now.pause != st.shownPause.pause || now.peerPresent != st.shownPause.peerPresent)
 		{
+			// the other Brick back: the cursor off Leave, where losing it put it
+			if (now.peerPresent && !st.shownPause.peerPresent)
+				ui::page().selected = 0;
 			st.shownPause = now;
 			ui::page().title = sessionTitle();
 			ui::redraw();

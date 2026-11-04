@@ -16,13 +16,14 @@ namespace deadstation::netplay
 void begin(bool host, const std::string& peerAddress, int inputDelay);
 bool active();				// a session runs (or is about to, from the restart)
 bool host();
+bool heardPeer();			// the other Brick has answered, in this session
 // before each frame of a session: this Brick's pad for the frame `delay` frames ahead out, the other's
 // for this frame in. False while it cannot go on (the other paused, gone, or late): the frame waits.
 bool step(int16_t localBits);
 int16_t pad(unsigned port);	// the frame's pads, RETRO_DEVICE_ID_JOYPAD_* bits
 // this Brick's menu opened or closed: the other Brick pauses too
 void setPaused(bool paused);
-enum class Pause { None, PeerMenu, Lost };
+enum class Pause { None, Menu, PeerMenu, Lost };
 struct PauseState
 {
 	Pause pause = Pause::None;

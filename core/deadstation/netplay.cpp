@@ -3,6 +3,7 @@
 
 #include <arpa/inet.h>
 #include <chrono>
+#include <cstdlib>
 #include <cstring>
 #include <fcntl.h>
 #include <map>
@@ -20,6 +21,9 @@ using Clock = std::chrono::steady_clock;
 constexpr uint16_t Port = 19773;
 constexpr int MaxAhead = 16;
 constexpr auto LostAfter = std::chrono::seconds(3);
+// the other Brick not heard yet: it may be slower to start the game
+constexpr auto StartWait = std::chrono::seconds(30);
+constexpr auto KeepTalking = std::chrono::milliseconds(100);
 constexpr uint32_t HashEvery = 300;
 
 // a packet: the sender's pads for frames [first, first + count), whether its menu is open or it left, and its
@@ -45,7 +49,7 @@ int delay = 2;
 uint32_t frame = 0;					// the frame about to run
 std::map<uint32_t, int16_t> local, remote;
 int16_t pads[2] = { 0, 0 };
-bool localPaused = false, peerPaused = false, peerLeft = false;
+bool localPaused = false, peerPaused = false, peerLeft = false, heard = false;
 Clock::time_point lastHeard, lastSent;
 std::map<uint32_t, uint32_t> myHash, peerHash;
 
@@ -92,6 +96,7 @@ void receive()
 		if (memcmp(p.magic, Magic, 4) != 0)
 			continue;
 		lastHeard = Clock::now();
+		heard = true;
 		for (int i = 0; i < p.count && i < MaxAhead; i++)
 			remote.emplace(p.first + i, p.bits[i]);
 		peerPaused = (p.flags & Paused) != 0;
@@ -127,7 +132,9 @@ void begin(bool hostSide, const std::string& peerAddress, int inputDelay)
 	me.sin_addr.s_addr = htonl(INADDR_ANY);
 	peer = {};
 	peer.sin_family = AF_INET;
-	peer.sin_port = htons(Port);
+	// (tests: the other Brick's part played on this one, on a port of its own)
+	const char *testPort = getenv("DEADSTATION_TEST_PEER_PORT");
+	peer.sin_port = htons(testPort != nullptr ? (uint16_t)atoi(testPort) : Port);
 	if (sock < 0 || bind(sock, (const sockaddr *)&me, sizeof(me)) != 0
 			|| inet_pton(AF_INET, peerAddress.c_str(), &peer.sin_addr) != 1)
 	{
@@ -146,7 +153,7 @@ void begin(bool hostSide, const std::string& peerAddress, int inputDelay)
 		local[f] = 0;
 		remote[f] = 0;
 	}
-	localPaused = peerPaused = peerLeft = false;
+	localPaused = peerPaused = peerLeft = heard = false;
 	lastHeard = lastSent = Clock::now();
 	running = true;
 	DS_LOG("netplay: session with %s, %s, input delay %d", peerAddress.c_str(), isHost ? "player 1" : "player 2", delay);
@@ -160,6 +167,11 @@ bool active()
 bool host()
 {
 	return isHost;
+}
+
+bool heardPeer()
+{
+	return heard;
 }
 
 bool step(int16_t localBits)
@@ -223,9 +235,13 @@ PauseState pauseState()
 	if (!running)
 		return s;
 	receive();
-	const bool lost = Clock::now() - lastHeard > LostAfter;
+	const auto now = Clock::now();
+	// a menu up here: still telling the other Brick so, or the two would never hear each other again
+	if (now - lastSent > KeepTalking)
+		send();
+	const bool lost = now - lastHeard > (heard ? LostAfter : StartWait);
 	s.peerPresent = !lost;
-	s.pause = lost ? Pause::Lost : peerPaused ? Pause::PeerMenu : Pause::None;
+	s.pause = lost ? Pause::Lost : peerPaused ? Pause::PeerMenu : localPaused ? Pause::Menu : Pause::None;
 	return s;
 }
 
