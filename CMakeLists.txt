@@ -6,6 +6,8 @@ project(deadstation VERSION 1.0.0 LANGUAGES C CXX ASM)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+# no path of this machine in the binary
+add_compile_options(-ffile-prefix-map=${CMAKE_SOURCE_DIR}=.)
 
 execute_process(COMMAND git rev-parse --short=8 HEAD WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 		OUTPUT_VARIABLE DEADSTATION_GIT_HASH OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
