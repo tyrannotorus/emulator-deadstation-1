@@ -1,22 +1,21 @@
 # Deadstation 1
-A Playstation 1 emulator targeting optimal performance on the Trimui Brick/Hammer.
+A PlayStation 1 emulator targeting optimal performance on the Trimui Brick/Hammer.
 
 # Features
 ## Emulator
-- All (?) games play full speed on the TrimUI Brick/Hammer.
-- USB-C / Bluetooth device-to-device co-op play.
+- Demanding games like Bloody Roar II play at full speed at 1024x768.
+- USB-C / Bluetooth device-to-device two-player.
 - In-app Recomp store for game mods
 
 # Supported Devices
 ## Trimui Brick/Hammer
 1. Install Deadstation via the [NextUI](https://github.com/LoveRetro/NextUI) [Pak Store](https://github.com/LoveRetro/nextui-pak-store).
-2. Put Dreamcast roms in a `/Roms/Dreamcast (DC-DEADCAST)/` folder on your SD Card.
-3. Put the Dreamcast BIOS (`dc_boot.bin`) in the `/Emus/tg5040/DC-DEADCAST.pak/bios/` folder on your SD Card.
+2. Put PlayStation roms in a `/Roms/PlayStation (PS-DEADSTATION1)/` folder on your SD Card.
+3. Put a PlayStation BIOS (such as `scph1001.bin`) in the `/Emus/tg5040/PS-DEADSTATION1.pak/bios/` folder on your SD Card.
 
 # Credits
-- [Flycast](https://github.com/flyinghead/flycast): the emulator Deadcast is built from.
-- [dreamcomp](https://github.com/cherryduck/dreamcomp): the Dreamcast recompiler the recomp engine builds on.
-- [Rez Recompiled](https://github.com/tyrannotorus/recomp-dreamcast-rez): the port the Rez recomp module comes from.
+- [PCSX ReARMed](https://github.com/libretro/pcsx_rearmed): the emulator Deadstation is built from.
+- [PSXRecomp](https://github.com/RetroPortingToolKit/psxrecomp): the PlayStation recompiler the recomp modules build on.
 
 ---
 
@@ -57,7 +56,7 @@ The core's sources and flags in `CMakeLists.txt` follow upstream's `Makefile.lib
 
 - Each is its own repository, built on the [recomp SDK](https://github.com/tyrannotorus/emulator-deadstation-1-recomp-sdk): the rules, the folder and `module.cfg` are in its README.
 - Listing one: add its repository to `store/registry.txt`. The store then offers its latest release.
-- In the menu a module goes by its manifest's `title` (`Tekken 3 Recompiled`); in the docs it is the "<game title> recomp module". Never the game's title alone.
+- In the menu a module goes by its manifest's `title` (`Tekken 3 Remastered`); in the docs it is the "<game title> recomp module". Never the game's title alone.
 - A module's options, in Options with Core on it: Show FPS first, the module's settings after, then its own Controls if it declares any (nothing is shared with the emulator's). They are kept in its own
   `recomp-data/<id>/settings.cfg`, and go when it is deleted. Getting, updating and deleting a module are the Recomp Store's (on the main page).
 - Any error of a module's shows the error with one button, `A TRY EMULATOR CORE`: Core becomes the emulator and the game starts again in it. The module stays installed, to switch back to in Options or to update in the store.
