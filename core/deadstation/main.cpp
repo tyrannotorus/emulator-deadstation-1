@@ -592,7 +592,9 @@ int main(int argc, char **argv)
 			const menu::Result result = menu::frame();
 			if (result == menu::Result::Open)
 			{
-				SDL_Delay(16);
+				// a picture shown: straight on, the flip waiting for the panel's refresh; nothing moving: the pad, 8 ms on
+				if (!ui::shown())
+					SDL_Delay(8);
 				continue;
 			}
 			if (result == menu::Result::Quit)
