@@ -117,6 +117,8 @@ Screen bindingsScreen()
 		};
 		screen.items.push_back(std::move(item));
 	}
+	if (options::hasGame())
+		screen.items.push_back(ui::saveAsDefaultEntry("Use these controls for all games.", controls::saveAsDefault));
 	refreshBindings(screen);
 	return screen;
 }
@@ -441,6 +443,8 @@ ui::Host host()
 	}
 	host.version = "Deadstation " DEADSTATION_VERSION;
 	host.emulatorSettings = settings::store();
+	if (options::hasGame())
+		host.saveAsDefault = options::saveAsDefault;
 	host.controls = [] { ui::push(bindingsScreen()); };
 	host.localMultiplayer = [] { ui::push(localMultiplayerScreen()); };
 	return host;

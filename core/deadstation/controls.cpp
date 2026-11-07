@@ -3,9 +3,11 @@
 
 #include <libretro.h>
 
+#include <cstdio>
 #include <cstdlib>
 #include <fstream>
 #include <map>
+#include <sys/stat.h>
 
 namespace deadstation::controls
 {
@@ -37,16 +39,31 @@ const int Defaults[Count] = {
 int bindings[Count];
 SDL_Joystick *pad = nullptr;
 
+// the defaults
 std::string path()
 {
 	return recomp::home() + "/controls.cfg";
 }
 
-void save()
+// the game's own: games/<disc id>.controls.cfg, "" without a game
+std::string gamePath()
 {
-	std::ofstream out(path(), std::ios::trunc);
+	return options::gameFile(".controls.cfg");
+}
+
+void writeTo(const std::string& file)
+{
+	if (file == gamePath())
+		mkdir((recomp::home() + "/games").c_str(), 0755);
+	std::ofstream out(file, std::ios::trunc);
 	for (const Control& c : Controls)
 		out << c.name << " = " << bindings[c.function] << "\n";
+}
+
+// a change: for the game (without one, the defaults)
+void save()
+{
+	writeTo(gamePath().empty() ? path() : gamePath());
 }
 
 }	// namespace
@@ -56,11 +73,20 @@ const std::vector<Control>& list()
 	return Controls;
 }
 
+void saveAsDefault()
+{
+	writeTo(path());
+	if (!gamePath().empty())
+		remove(gamePath().c_str());
+}
+
 void load()
 {
 	for (int i = 0; i < Count; i++)
 		bindings[i] = Defaults[i];
-	std::ifstream in(path());
+	// the game's, else the defaults
+	const std::string own = gamePath();
+	std::ifstream in(!own.empty() && std::ifstream(own).good() ? own : path());
 	std::map<std::string, int> read;
 	for (std::string line; std::getline(in, line); )
 	{

@@ -1,6 +1,6 @@
 // The Brick's controls (trimui_inputd's Xbox 360 pad through SDL's joystick API) and what each does:
 // the PlayStation's buttons and Deadstation's own functions, remapped in Options > Controls and
-// kept in <home>/controls.cfg. MENU is always the menu.
+// kept for each game (games/<disc id>.controls.cfg), else in <home>/controls.cfg. MENU is always the menu.
 #pragma once
 #include <SDL.h>
 
@@ -28,7 +28,10 @@ struct Control
 };
 const std::vector<Control>& list();
 
-void load();				// <home>/controls.cfg, else the defaults
+// the game's own controls (options::gameFile, games/<disc id>.controls.cfg: each change kept there), else the defaults
+// (<home>/controls.cfg, which saveAsDefault() writes from the game's, the game then following them)
+void saveAsDefault();
+void load();				// the game's, else the defaults, else the built-in ones
 int binding(Function f);
 std::string inputName(int input);
 // one control does one thing: taken from whatever had it; saved at once

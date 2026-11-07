@@ -34,7 +34,7 @@ const std::map<std::string, std::vector<const char *>> CoreValues {
 
 const options::Setting *findSetting(const char *section, const char *key)
 {
-	for (const options::Page& page : options::pages())
+	for (const options::Page& page : options::gamePages())
 		for (const options::Setting& s : page.settings)
 			if (strcmp(s.section, section) == 0 && strcmp(s.key, key) == 0)
 				return &s;
@@ -44,7 +44,7 @@ const options::Setting *findSetting(const char *section, const char *key)
 int fileValue(const char *section, const char *key, int fallback)
 {
 	const options::Setting *s = findSetting(section, key);
-	return s != nullptr ? options::file().get(*s) : fallback;
+	return s != nullptr ? options::game().get(*s) : fallback;
 }
 
 // a core option's value: forced, else Options', else the core's default
@@ -61,7 +61,7 @@ std::string coreValue(const std::string& key)
 	if (auto v = CoreValues.find(key); v != CoreValues.end())
 		if (const options::Setting *s = findSetting("core", key.c_str()))
 		{
-			const int i = options::file().get(*s);
+			const int i = options::game().get(*s);
 			if (i >= 0 && i < (int)v->second.size())
 				return v->second[i];
 		}
@@ -151,11 +151,11 @@ void force(const std::string& key, const std::string& value)
 
 options::Store store()
 {
-	options::Store file = options::file();
+	options::Store game = options::game();
 	return {
-		file.get,
-		[file](const options::Setting& setting, int value) {
-			file.set(setting, value);
+		game.get,
+		[game](const options::Setting& setting, int value) {
+			game.set(setting, value);
 			if (strcmp(setting.section, "core") == 0)
 			{
 				pending |= CoreOptions;

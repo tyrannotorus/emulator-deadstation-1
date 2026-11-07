@@ -17,11 +17,13 @@ foreach(_shader frame.vert frame.frag frame_exact.frag)
 	list(APPEND _spirv ${_out})
 endforeach()
 
-add_executable(deadstation main.cpp controls.cpp controls.h link.cpp link.h link_core.h link_bluetooth.cpp link_usb.cpp log.h
+add_executable(deadstation main.cpp controls.cpp controls.h disc.cpp disc.h link.cpp link.h link_core.h link_bluetooth.cpp link_usb.cpp log.h
 		menu.cpp menu.h netplay.cpp netplay.h osd.cpp osd.h panel.cpp panel.h settings.cpp settings.h types.h
 		states.cpp states.h video.cpp video.h vk.h ${_spirv})
 target_include_directories(deadstation PRIVATE ${DEADSTATION_VULKAN_INCLUDE} ${CMAKE_CURRENT_BINARY_DIR}/shaders)
 target_compile_definitions(deadstation PRIVATE DEADSTATION_VERSION="${DEADSTATION_VERSION}" DEADSTATION_APP_VERSION="${PROJECT_VERSION}")
 target_compile_options(deadstation PRIVATE -O2 -Wall)
+# the disc's id read with the core's libchdr (disc.cpp)
+set_source_files_properties(disc.cpp PROPERTIES INCLUDE_DIRECTORIES ${CMAKE_SOURCE_DIR}/core/deps/libchdr/include)
 find_package(ZLIB REQUIRED)
 target_link_libraries(deadstation PRIVATE pcsx_core deadui SDL2::SDL2 ZLIB::ZLIB)

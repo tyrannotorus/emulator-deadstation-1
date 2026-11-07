@@ -10,6 +10,7 @@
 // DEADSTATION_TEST_SESSION=host|guest starts a two-player session, the other Brick's part played by another program on
 // this one, on port DEADSTATION_TEST_PEER_PORT, its memory card from file DEADSTATION_TEST_PEER_CARD.
 #include "controls.h"
+#include "disc.h"
 #include "link.h"
 #include "netplay.h"
 #include "log.h"
@@ -473,6 +474,10 @@ int main(int argc, char **argv)
 				},
 				padEvents);
 	});
+	// the game's own settings and controls, by its disc id (games/<id>.cfg, games/<id>.controls.cfg), before either is read
+	const std::string discId = disc::id(disc);
+	DS_LOG("disc %s", discId.empty() ? "(no id)" : discId.c_str());
+	options::setGame(discId);
 
 	signal(SIGTERM, [](int) { quit = true; });
 	signal(SIGUSR1, [](int) { shotWanted = true; });
