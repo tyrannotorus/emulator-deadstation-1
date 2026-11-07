@@ -9,8 +9,9 @@
     "tg5040"
   ],
   "launch": "launch.sh",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "changelog": {
+    "1.0.2": "- Added Per-game settings\n- Added Fast CD-ROM\n- 1024x768 by default",
     "1.0.1": "- Smoother menus",
     "1.0.0": "- PlayStation games at full speed\n- Local multiplayer: two Bricks over USB-C or Bluetooth\n- In-app Recomp Store: Rally Cross and Tekken 3"
   }

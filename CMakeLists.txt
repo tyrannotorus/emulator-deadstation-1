@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 # Deadstation 1: PCSX ReARMed (core/) for the TrimUI Brick (NextUI, tg5040). Brick only: build with
 # shell/brick/build.sh, which passes ui/toolchain/tg5040.cmake as the toolchain file.
-project(deadstation VERSION 1.0.1 LANGUAGES C CXX ASM)
+project(deadstation VERSION 1.0.2 LANGUAGES C CXX ASM)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
