@@ -1,6 +1,10 @@
 # Deadstation 1
 A PlayStation 1 emulator targeting optimal performance on the Trimui Brick/Hammer.
 
+<img width="1024" height="768" alt="Tekken 3 (US) recomp 19761108-051948 66" src="https://github.com/user-attachments/assets/51597294-b069-4101-ae31-63303836057c" />
+<img width="1024" height="768" alt="Rally Cross (USA) recomp 19761108-052158 31" src="https://github.com/user-attachments/assets/102b35bd-2eed-4daf-b470-15610a93726a" />
+<img width="1024" height="768" alt="Return Fire (US) emu 19761108-052430 30" src="https://github.com/user-attachments/assets/7b962357-9174-4d81-9ccc-2f3e91bf7a9e" />
+
 # Features
 ## Emulator
 - Demanding games like Bloody Roar II play at full speed at 1024x768.
