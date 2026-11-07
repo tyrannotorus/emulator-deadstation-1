@@ -26,7 +26,7 @@ bool coreUpdate = false;
 // Options' core settings: the value each of its choices stands for, in order
 const std::map<std::string, std::vector<const char *>> CoreValues {
 	{ "pcsx_rearmed_region", { "auto", "NTSC", "PAL" } },
-	{ "pcsx_rearmed_frameskip_type", { "disabled", "auto" } },
+	{ "pcsx_rearmed_cd_turbo", { "disabled", "enabled" } },
 	{ "pcsx_rearmed_dithering", { "disabled", "enabled" } },
 	{ "pcsx_rearmed_spu_reverb", { "disabled", "enabled" } },
 	{ "pcsx_rearmed_spu_interpolation", { "simple", "gaussian", "cubic", "off" } },
@@ -52,6 +52,11 @@ std::string coreValue(const std::string& key)
 {
 	if (auto f = forced.find(key); f != forced.end())
 		return f->second;
+	// frame skip always on, not a setting (a value in emu.cfg or a game's file is ignored): a game behind real time
+	// skips drawing frames rather than starve the sound, which crackles (main.cpp tells the core how full the
+	// audio queue is). A two-player session forces it off, the same on both Bricks.
+	if (key == "pcsx_rearmed_frameskip_type")
+		return "auto";
 	// the PlayStation's own startup screen (the BIOS's logo) always plays before the game, and its own BIOS
 	// whenever there is a file of it (the core's built-in one only without): no settings
 	if (key == "pcsx_rearmed_show_bios_bootlogo")

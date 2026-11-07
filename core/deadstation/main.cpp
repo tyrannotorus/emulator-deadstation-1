@@ -48,6 +48,7 @@ std::string homeDir = ".";
 std::string biosDir = ".";
 SDL_AudioDeviceID audioDevice = 0;
 uint32_t audioLimit = 0;		// bytes queued at most (more is dropped)
+retro_audio_buffer_status_callback_t audioStatus = nullptr;	// the core's auto frame skip: told the queue's level
 SDL_Joystick *joystick = nullptr;
 int16_t padBits = 0;			// RETRO_DEVICE_ID_JOYPAD_* bits of port 0
 bool fastForward = false;
@@ -114,6 +115,10 @@ bool environment(unsigned cmd, void *data)
 			osd::notify(message->msg, (int)message->duration);
 		return true;
 	}
+	case RETRO_ENVIRONMENT_SET_AUDIO_BUFFER_STATUS_CALLBACK:
+		// the core's auto frame skip (always on, settings.cpp): told before each frame how full the audio queue is
+		audioStatus = data != nullptr ? ((const retro_audio_buffer_status_callback *)data)->callback : nullptr;
+		return true;
 	default:
 		return false;
 	}
@@ -253,6 +258,7 @@ void startSession()
 	settings::force("pcsx_rearmed_gpu_thread_rendering", "disabled");
 	settings::force("pcsx_rearmed_region", "auto");
 	settings::force("pcsx_rearmed_frameskip_type", "disabled");
+	settings::force("pcsx_rearmed_cd_turbo", "disabled");
 	settings::force("pcsx_rearmed_memcard2", "libretro");
 	saveMemcard(memcardFile);
 	retro_unload_game();
@@ -571,6 +577,9 @@ int main(int argc, char **argv)
 	timespec statFrom = next;
 	unsigned frames = 0;
 	unsigned shownFrom = 0;
+	// perf: the audio queue at its lowest before a frame, and the frames the core was told it was short
+	uint32_t queuedMin = ~0u;
+	unsigned framesShort = 0;
 	// perf: the core's time per frame (retro_run), its worst, and the frames it took longer than one period
 	const bool perfEverySecond = getenv("DEADSTATION_PERF") != nullptr;
 	double runTime = 0, runWorst = 0;
@@ -713,6 +722,20 @@ int main(int argc, char **argv)
 		timespec before{};
 		clock_gettime(CLOCK_MONOTONIC, &before);
 		const unsigned presentedBefore = presented;
+		// the core's auto frame skip: the queue's level, and whether the sound may run dry: this frame starts more
+		// than 4 ms late (the last ran over its period) with less than a third of the queue's 100 ms left; the core
+		// then skips drawing it to catch up. Never on time: the loop waits for the next frame's time whatever the core
+		// took, so a skip could not help (the queue itself sits at 15-30 ms at full speed, Bloody Roar II 2026-11-07)
+		if (audioStatus != nullptr)
+		{
+			const bool active = audioDevice != 0 && !fastForward;
+			const uint32_t queued = active ? SDL_GetQueuedAudioSize(audioDevice) : 0;
+			const bool low = active && secondsBetween(next, before) > 0.004 && queued < audioLimit / 3;
+			audioStatus(active, active ? (unsigned)std::min<uint64_t>(100, (uint64_t)queued * 100 / audioLimit) : 0, low);
+			if (active)
+				queuedMin = std::min(queuedMin, queued);
+			framesShort += low;
+		}
 		retro_run();
 		// (not over the start page: the text's last frame again would take its place)
 		if (!menu::starting())
@@ -747,13 +770,15 @@ int main(int argc, char **argv)
 			if (perfEverySecond || ++perfCount % 10 == 0)
 			{
 				const double waited = video.takeWaited();
-				DS_LOG("perf: %.1f frames/s run, %.1f drawn, core %.2f ms a frame, worst %.2f, %u over %.2f, present wait %.2f ms a frame",
+				DS_LOG("perf: %.1f frames/s run, %.1f drawn, core %.2f ms a frame, worst %.2f, %u over %.2f, present wait %.2f ms a frame, audio queued min %.1f ms, %u frames short",
 						frames / span, shown, frames != 0 ? (runTime - waited) * 1e3 / frames : 0.0, runWorst * 1e3, over, period * 1e-6,
-						frames != 0 ? waited * 1e3 / frames : 0.0);
+						frames != 0 ? waited * 1e3 / frames : 0.0, queuedMin != ~0u ? queuedMin * 1e3 / 4 / rate : -1.0, framesShort);
 			}
 			runTime = runWorst = 0;
 			over = 0;
 			frames = 0;
+			queuedMin = ~0u;
+			framesShort = 0;
 			shownFrom = presented;
 			statFrom = now;
 		}
