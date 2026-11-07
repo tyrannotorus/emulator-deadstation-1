@@ -63,6 +63,10 @@ std::string coreValue(const std::string& key)
 		return "enabled";
 	if (key == "pcsx_rearmed_bios")
 		return "auto";
+	// the core's start-up notice of its hacks ("Enabled hacks: TurboCD", Fast CD-ROM being on by default): in the
+	// log only, never on the screen. The option gates nothing else.
+	if (key == "pcsx_rearmed_display_info")
+		return "disabled";
 	if (auto v = CoreValues.find(key); v != CoreValues.end())
 		if (const options::Setting *s = findSetting("core", key.c_str()))
 		{
@@ -140,7 +144,7 @@ bool nativeResolution()
 	// tests: DEADSTATION_RESOLUTION=1024 or 640, over emu.cfg
 	if (const char *test = getenv("DEADSTATION_RESOLUTION"); test != nullptr && *test != '\0')
 		return strcmp(test, "1024") == 0;
-	return fileValue("deadstation", "Resolution", 0) != 0;
+	return fileValue("deadstation", "Resolution", 1) != 0;	// 1024 x 768 unless picked
 }
 
 bool smoothing()
