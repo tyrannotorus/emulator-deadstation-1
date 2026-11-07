@@ -5,6 +5,11 @@
   "author": "tyrannotorus",
   "repo_url": "https://github.com/tyrannotorus/emulator-deadstation-1",
   "release_filename": "PS-DEADSTATION-1.pak.zip",
+  "screenshots": [
+    "screenshots/tekken-3.png",
+    "screenshots/rally-cross.png",
+    "screenshots/return-fire.png"
+  ],
   "platforms": [
     "tg5040"
   ],
