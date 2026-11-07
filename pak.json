@@ -1,7 +1,7 @@
 {
   "name": "PS-DEADSTATION-1",
   "type": "EMU",
-  "description": "A PlayStation emulator for the TrimUI Brick: games at full speed, local multiplayer and an in-app Recomp Store.",
+  "description": "A performance-focused PlayStation emulator with local multiplayer and recomp modules.",
   "author": "tyrannotorus",
   "repo_url": "https://github.com/tyrannotorus/emulator-deadstation-1",
   "release_filename": "PS-DEADSTATION-1.pak.zip",
