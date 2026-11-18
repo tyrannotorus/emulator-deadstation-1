@@ -6,7 +6,6 @@ A PlayStation 1 emulator targeting optimal performance on the Trimui Brick/Hamme
 <img width="1024" height="768" alt="Return Fire (US) emu 19761108-052430 30" src="https://github.com/user-attachments/assets/7b962357-9174-4d81-9ccc-2f3e91bf7a9e" />
 
 # Features
-## Emulator
 - Demanding games like Bloody Roar II play at full speed at 1024x768.
 - USB-C / Bluetooth device-to-device two-player.
 - In-app Recomp store for game mods
