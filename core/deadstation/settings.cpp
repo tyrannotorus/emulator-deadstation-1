@@ -41,10 +41,19 @@ const options::Setting *findSetting(const char *section, const char *key)
 	return nullptr;
 }
 
-int fileValue(const char *section, const char *key, int fallback)
+// a row of Options' pages (options.cpp) by its section and key: a key no row has is a mistake here, said and stopped
+const options::Setting& row(const char *section, const char *key)
 {
-	const options::Setting *s = findSetting(section, key);
-	return s != nullptr ? options::game().get(*s) : fallback;
+	if (const options::Setting *s = findSetting(section, key))
+		return *s;
+	DS_LOG("settings: no row [%s] %s", section, key);
+	std::abort();
+}
+
+// a row's value as the game has it (else the defaults, else the row's own default)
+int fileValue(const char *section, const char *key)
+{
+	return options::game().get(row(section, key));
 }
 
 // a core option's value: forced, else Options', else the core's default
@@ -68,12 +77,12 @@ std::string coreValue(const std::string& key)
 	if (key == "pcsx_rearmed_display_info")
 		return "disabled";
 	if (auto v = CoreValues.find(key); v != CoreValues.end())
-		if (const options::Setting *s = findSetting("core", key.c_str()))
-		{
-			const int i = options::game().get(*s);
-			if (i >= 0 && i < (int)v->second.size())
-				return v->second[i];
-		}
+	{
+		const int i = fileValue("core", key.c_str());
+		if (i >= 0 && i < (int)v->second.size())
+			return v->second[i];
+		DS_LOG("settings: [core] %s = %d, not one of its choices: the core's default", key.c_str(), i);
+	}
 	// 1024 x 768: the NEON GPU draws at twice the resolution
 	if (key == "pcsx_rearmed_neon_enhancement_enable")
 		return nativeResolution() ? "enabled" : "disabled";
@@ -136,7 +145,7 @@ bool environment(unsigned cmd, void *data, bool& handled)
 
 bool showFps()
 {
-	return fileValue("deadstation", "ShowFPS", 0) != 0;
+	return fileValue("deadstation", "ShowFPS") != 0;
 }
 
 bool nativeResolution()
@@ -144,12 +153,12 @@ bool nativeResolution()
 	// tests: DEADSTATION_RESOLUTION=1024 or 640, over emu.cfg
 	if (const char *test = getenv("DEADSTATION_RESOLUTION"); test != nullptr && *test != '\0')
 		return strcmp(test, "1024") == 0;
-	return fileValue("deadstation", "Resolution", 1) != 0;	// 1024 x 768 unless picked
+	return fileValue("deadstation", "Resolution") != 0;
 }
 
 bool smoothing()
 {
-	return fileValue("deadstation", "Smoothing", 1) != 0;
+	return fileValue("deadstation", "Smoothing") != 0;
 }
 
 void force(const std::string& key, const std::string& value)
@@ -170,12 +179,12 @@ options::Store store()
 				pending |= CoreOptions;
 				coreUpdate = true;
 			}
-			else if (strcmp(setting.key, "Resolution") == 0)
+			else if (setting.key == row("deadstation", "Resolution").key)
 			{
 				pending |= Resolution | CoreOptions;
 				coreUpdate = true;
 			}
-			else if (strcmp(setting.key, "Smoothing") == 0)
+			else if (setting.key == row("deadstation", "Smoothing").key)
 				pending |= Smoothing;
 		},
 	};
