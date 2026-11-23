@@ -1,4 +1,4 @@
-// Deadstation's settings, as Options shows them (ui/src/options.h): built into the shared UI as DEADUI_OPTIONS_SOURCE.
+// Deadstation's settings, as Options shows them (ui/src/options.h).
 // No BIOS row: the PlayStation's own BIOS always plays (its startup screen too), the core's built-in one only when there
 // is no BIOS file.
 #include "options.h"

@@ -18,7 +18,7 @@ foreach(_shader frame.vert frame.frag frame_exact.frag)
 endforeach()
 
 add_executable(deadstation main.cpp controls.cpp controls.h disc.cpp disc.h link.cpp link.h link_core.h link_bluetooth.cpp link_usb.cpp log.h
-		menu.cpp menu.h netplay.cpp netplay.h osd.cpp osd.h panel.cpp panel.h settings.cpp settings.h types.h
+		menu.cpp menu.h options.cpp netplay.cpp netplay.h osd.cpp osd.h panel.cpp panel.h settings.cpp settings.h types.h
 		states.cpp states.h video.cpp video.h vk.h ${_spirv})
 target_include_directories(deadstation PRIVATE ${DEADSTATION_VULKAN_INCLUDE} ${CMAKE_CURRENT_BINARY_DIR}/shaders)
 target_compile_definitions(deadstation PRIVATE DEADSTATION_VERSION="${DEADSTATION_VERSION}" DEADSTATION_APP_VERSION="${PROJECT_VERSION}")
